@@ -18,7 +18,7 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/jichang/utools-jenkins-three.git
+git clone https://github.com/sanniou/utools-uMeme
 cd utools-uMeme
 
 # 安装依赖
