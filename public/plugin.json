@@ -1,0 +1,21 @@
+{
+  "main": "index.html",
+  "logo": "logo.png",
+  "description": "图片/表情包聚合搜索",
+  "platform": ["win32", "darwin", "linux"],
+  "version": "0.1.0",
+  "preload": "preload.js",
+  "homepage": "",
+  "development": {
+    "main": "http://127.0.0.1:3000",
+    "preload": ""
+  },
+  "features": [
+    {
+      "code": "meme_search",
+      "explain": "搜索图片或表情包",
+      "cmds": ["meme", "表情包", "图片搜索"]
+    }
+  ],
+  "author": "Gemini"
+}

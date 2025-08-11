@@ -1,0 +1,217 @@
+<template>
+  <div class="image-search-container">
+    <header class="search-header">
+      <SourceTabs v-model="activeSource" @sourceChange="handleSourceChange" />
+      <el-button
+        @click="settingsVisible = true"
+        :icon="Setting"
+        circle
+        class="settings-btn"
+      />
+    </header>
+    <main
+      ref="scrollContainer"
+      class="content-area"
+      v-infinite-scroll="loadMore"
+      :infinite-scroll-disabled="isInfiniteScrollDisabled"
+    >
+      <ImageGrid :images="images" v-loading="loading && images.length === 0" />
+      <p v-if="loading && images.length > 0" class="loading-more">加载中...</p>
+      <p v-if="noMoreData && images.length > 0" class="no-more-data">
+        没有更多了
+      </p>
+    </main>
+
+    <el-drawer
+      v-model="settingsVisible"
+      title="设置"
+      direction="rtl"
+      size="50%"
+    >
+      <Settings />
+    </el-drawer>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, onUnmounted, computed } from "vue";
+import { Setting } from "@element-plus/icons-vue";
+import { searchUnsplash } from "../api/unsplash.js";
+import { searchDuckDuckGo } from "../api/duckduckgo.js";
+import SourceTabs from "./SourceTabs.vue";
+import ImageGrid from "./ImageGrid.vue";
+import Settings from "./Settings.vue";
+
+const images = ref([]);
+const settingsVisible = ref(false);
+const loading = ref(false);
+const noMoreData = ref(false);
+const scrollContainer = ref(null);
+
+const activeSource = ref("Unsplash");
+const currentPage = ref(1);
+const currentQuery = ref("");
+
+// Define source settings
+const sourceSettings = {
+  Unsplash: {
+    supportsPagination: true,
+    supportsEmptyKeyword: true,
+    searchFunction: searchUnsplash
+  },
+  DuckDuckGo: {
+    supportsPagination: false,
+    supportsEmptyKeyword: false,
+    searchFunction: searchDuckDuckGo
+  }
+};
+
+// 根据当前源判断是否禁用无限滚动
+const isInfiniteScrollDisabled = computed(() => {
+  if (loading.value || noMoreData.value) return true;
+  // Use source settings to determine if pagination is supported
+  return !sourceSettings[activeSource.value].supportsPagination;
+});
+
+const fetchData = async (isNewSearch = false) => {
+  if (loading.value) return;
+
+  const currentSourceSettings = sourceSettings[activeSource.value];
+
+  // Handle empty keyword for sources that don't support it
+  if (!currentSourceSettings.supportsEmptyKeyword && !currentQuery.value) {
+    images.value = []; // Clear images if query is empty and not supported
+    noMoreData.value = true; // No more data for empty query
+    loading.value = false;
+    return;
+  }
+
+  loading.value = true;
+
+  if (isNewSearch) {
+    currentPage.value = 1;
+    images.value = [];
+    noMoreData.value = false;
+    if (scrollContainer.value) {
+      scrollContainer.value.scrollTop = 0;
+    }
+  }
+
+  try {
+    let newImages = [];
+    if (currentSourceSettings.supportsPagination) {
+      newImages = await currentSourceSettings.searchFunction(currentQuery.value, currentPage.value);
+    } else {
+      // For sources that don't support pagination, only fetch on new search
+      if (isNewSearch) {
+        newImages = await currentSourceSettings.searchFunction(currentQuery.value);
+      }
+    }
+
+    if (newImages.length === 0) {
+      noMoreData.value = true;
+    } else {
+      images.value.push(...newImages);
+      if (currentSourceSettings.supportsPagination) { // Only increment page if pagination is supported
+        currentPage.value++;
+      } else {
+        // For non-paginated sources, if we got data, it's all we're getting
+        noMoreData.value = true;
+      }
+    }
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleSearch = (query) => {
+  currentQuery.value = query;
+  fetchData(true);
+};
+
+const handleSourceChange = (source) => {
+  activeSource.value = source;
+  // Save the new source to the database
+  const doc = utools.db.get('last_source');
+  utools.db.put({
+    _id: 'last_source',
+    data: source,
+    ...(doc ? { _rev: doc._rev } : {})
+  });
+  // 切换源时，立即使用当前输入框的内容进行一次新搜索
+  handleSearch(currentQuery.value);
+};
+
+const searchOnEnter = (event) => {
+  if (event.code === 'Enter') {
+    handleSearch(currentQuery.value);
+  }
+};
+
+onMounted(() => {
+  // Load last used source
+  const storedSourceDoc = utools.db.get('last_source');
+  if (storedSourceDoc) {
+    activeSource.value = storedSourceDoc.data;
+  }
+
+  utools.onPluginEnter(({ type, payload }) => {
+    utools.setSubInput(({ text }) => {
+      currentQuery.value = text;
+    }, "鼠标操作:回车搜索,左击复制图片,中击查看大图,右击加入收藏～");
+
+    if (type === 'over') {
+      utools.setSubInputValue(payload);
+      currentQuery.value = payload;
+      handleSearch(payload);
+    }
+  });
+
+  addEventListener('keydown', searchOnEnter);
+
+  // Initial search
+  // handleSearch(currentQuery.value);
+});
+
+onUnmounted(() => {
+  removeEventListener('keydown', searchOnEnter);
+});
+
+
+const loadMore = () => {
+  // Use source settings to determine if pagination is supported
+  if (sourceSettings[activeSource.value].supportsPagination) {
+    fetchData(false);
+  }
+};
+</script>
+
+<style scoped>
+.image-search-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #fff;
+}
+.search-header {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1rem 0 1rem;
+}
+.settings-btn {
+  margin-left: 1rem;
+}
+.search-bar-container {
+  padding: 1rem;
+}
+.content-area {
+  flex-grow: 1;
+  overflow-y: auto;
+}
+.loading-more,
+.no-more-data {
+  text-align: center;
+  color: #999;
+  padding: 1rem;
+}
+</style>
