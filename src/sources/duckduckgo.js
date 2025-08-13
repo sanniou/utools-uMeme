@@ -1,13 +1,10 @@
 
-import { ElMessage } from 'element-plus';
-
 // DuckDuckGo 的图片搜索 URL
 const BASE_URL = 'https://duckduckgo.com/';
 
 // 用于从 HTML 中提取图片链接的正则表达式
 // 这个表达式寻找 'vqd' 参数，这是后续请求需要的
 const VQD_REGEX = /vqd=([\d-]+)&/;
-// 这个表达式寻找包含图片结果的 JS 字符串
 
 async function search(query) {
   const url = `${BASE_URL}?q=${encodeURIComponent(query)}&iax=images&ia=images`;
@@ -15,6 +12,9 @@ async function search(query) {
   try {
     // 1. 获取初始页面以获得 vqd token
     const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP Error fetching initial page: ${response.status} ${response.statusText}`);
+    }
     const html = await response.text();
     const vqdMatch = html.match(VQD_REGEX);
 
@@ -26,6 +26,9 @@ async function search(query) {
     // 2. 使用 vqd token 请求包含图片数据的 URL
     const imageUrl = `${BASE_URL}i.js?l=us-en&o=json&q=${encodeURIComponent(query)}&vqd=${vqd}&f=,,,&p=-1`;
     const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new Error(`HTTP Error fetching image data: ${imageResponse.status} ${imageResponse.statusText}`);
+    }
     const imageJs = await imageResponse.text();
     
     let resultsJson;
@@ -51,8 +54,7 @@ async function search(query) {
 
   } catch (error) {
     console.error('Failed to fetch from DuckDuckGo:', error);
-    ElMessage.error(`请求 DuckDuckGo 失败: ${error.message}`);
-    return [];
+    throw error;
   }
 }
 

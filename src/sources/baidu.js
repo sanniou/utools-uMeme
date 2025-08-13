@@ -1,6 +1,5 @@
 
 import axios from 'axios';
-import { ElMessage } from 'element-plus';
 
 async function search(query, page = 1, perPage = 20) {
   const url = `https://image.baidu.com/search/acjson`;
@@ -25,8 +24,7 @@ async function search(query, page = 1, perPage = 20) {
     }));
   } catch (error) {
     console.error('Failed to fetch from Baidu:', error);
-    ElMessage.error(`请求百度表情失败: ${error.message}`);
-    return [];
+    throw error;
   }
 }
 

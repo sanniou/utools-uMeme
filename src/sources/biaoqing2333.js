@@ -1,11 +1,9 @@
 
 import axios from 'axios';
-import { ElMessage } from 'element-plus';
 
 async function search(query, page = 1, perPage = 50) {
   if (!query) {
-    // 表情2333网不支持空关键字搜索
-    return [];
+    throw new Error('表情2333网不支持空关键字搜索');
   }
 
   const url = `https://biaoqing233.com/app/search/${query}?page=${page}&limit=${perPage}`;
@@ -23,8 +21,7 @@ async function search(query, page = 1, perPage = 50) {
     }));
   } catch (error) {
     console.error('Failed to fetch from BiaoQing2333:', error);
-    ElMessage.error(`请求表情2333网失败: ${error.message}`);
-    return [];
+    throw error;
   }
 }
 

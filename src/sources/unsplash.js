@@ -9,37 +9,41 @@ const DB_KEY = 'unsplash_api_key';
 function getApiKey() {
   const config = utools.db.get(DB_KEY);
   if (!config || !config.data) {
-    ElMessage.error('请先在设置中填写 Unsplash Access Key');
-    return null;
+    throw new Error('请先在设置中填写 Unsplash Access Key');
   }
   return config.data;
 }
 
 async function search(query, page = 1, perPage = 30) {
-  const apiKey = getApiKey();
-  if (!apiKey) return [];
+  const apiKey = getApiKey(); // This will throw if key is missing
 
   const url = `${API_BASE}/search/photos?query=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}&client_id=${apiKey}`;
 
   try {
     const response = await fetch(url);
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`API Error: ${errorData.errors.join(', ')}`);
+      // Try to parse error from Unsplash API response
+      try {
+        const errorData = await response.json();
+        throw new Error(`API Error: ${errorData.errors.join(', ')}`);
+      } catch (e) {
+        // If parsing fails, throw a generic error
+        throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+      }
     }
     const data = await response.json();
-    // 格式化数据以适配我们的组件
+    // Format data to fit our component
     return data.results.map(img => ({
       id: img.id,
-      url: img.urls.regular, // 使用 regular 尺寸的图片
-      thumb: img.urls.thumb, // 缩略图
+      url: img.urls.regular,
+      thumb: img.urls.thumb,
       alt: img.alt_description,
-      downloadUrl: img.links.download, // 用于触发下载的链接
+      downloadUrl: img.links.download,
     }));
   } catch (error) {
     console.error('Failed to fetch from Unsplash:', error);
-    ElMessage.error(`请求 Unsplash 失败: ${error.message}`);
-    return [];
+    // Re-throw the error to be caught by the central handler
+    throw error;
   }
 }
 

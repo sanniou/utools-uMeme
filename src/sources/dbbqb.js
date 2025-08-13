@@ -1,6 +1,5 @@
 
 import axios from 'axios';
-import { ElMessage } from 'element-plus';
 
 async function search(query, page = 1, perPage = 20) {
   let params;
@@ -32,8 +31,7 @@ async function search(query, page = 1, perPage = 20) {
     }));
   } catch (error) {
     console.error('Failed to fetch from Dbbqb:', error);
-    ElMessage.error(`请求逗比表情包失败: ${error.message}`);
-    return [];
+    throw error;
   }
 }
 
