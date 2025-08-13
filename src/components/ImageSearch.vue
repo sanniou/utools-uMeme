@@ -1,7 +1,11 @@
 <template>
   <div class="image-search-container">
     <header class="search-header">
-      <SourceTabs v-model="activeSourceName" />
+      <SourceTabs
+        v-model="activeSourceName"
+        :sources="availableSources"
+        :failure-counts="props.failureCounts"
+      />
       <el-button
         @click="settingsVisible = true"
         :icon="Setting"
@@ -27,8 +31,13 @@
       title="设置"
       direction="rtl"
       size="50%"
+      destroy-on-close
+      @closed="emit('settingsChanged')"
     >
-      <Settings />
+      <Settings
+        :failure-counts="props.failureCounts"
+        @clear-all-failures="emit('clear-all-failures')"
+      />
     </el-drawer>
   </div>
 </template>
@@ -37,25 +46,54 @@
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { ElMessage } from 'element-plus';
 import { Setting } from "@element-plus/icons-vue";
-import { sources, getSource } from "../sources";
+import { sources as allSources, getSource } from "../sources";
 import SourceTabs from "./SourceTabs.vue";
 import ImageGrid from "./ImageGrid.vue";
 import Settings from "./Settings.vue";
+
+const props = defineProps({
+  disabledSources: {
+    type: Array,
+    required: true,
+  },
+  failureCounts: {
+    type: Object,
+    required: true,
+  },
+});
+
+const emit = defineEmits([
+  "update-failure-count",
+  "settingsChanged",
+  "clear-all-failures",
+]);
 
 const images = ref([]);
 const settingsVisible = ref(false);
 const loading = ref(false);
 const noMoreData = ref(false);
 const scrollContainer = ref(null);
-
-const activeSourceName = ref(sources[0].name);
-const activeSource = computed(() => getSource(activeSourceName.value));
-
 const currentPage = ref(1);
 const currentQuery = ref("");
 
+const availableSources = computed(() =>
+  allSources.filter((s) => !props.disabledSources.includes(s.name))
+);
+
+const activeSourceName = ref("");
+const activeSource = computed(() => getSource(activeSourceName.value));
+
+// According to the current source, determine whether to disable infinite scrolling
+const isInfiniteScrollDisabled = computed(() => {
+  if (loading.value || noMoreData.value) return true;
+  if (!activeSource.value) return true;
+  return !activeSource.value.supportsPagination;
+});
+
 // Watch for the active source name changing
-watch(activeSourceName, (newName) => {
+watch(activeSourceName, (newName, oldName) => {
+  if (newName === oldName || !newName) return;
+
   // Save the new source to the database
   const doc = utools.db.get('last_source');
   utools.db.put({
@@ -67,30 +105,26 @@ watch(activeSourceName, (newName) => {
   handleSearch(currentQuery.value);
 });
 
-
-// According to the current source, determine whether to disable infinite scrolling
-const isInfiniteScrollDisabled = computed(() => {
-  if (loading.value || noMoreData.value) return true;
-  // Add a guard clause to prevent errors when activeSource is temporarily unavailable during updates
-  if (!activeSource.value) return true;
-  return !activeSource.value.supportsPagination;
+// Watch for changes in available sources and reset active source if needed
+watch(availableSources, (newSources) => {
+  const activeSourceStillExists = newSources.some(s => s.name === activeSourceName.value);
+  if (!activeSourceStillExists) {
+    activeSourceName.value = newSources.length > 0 ? newSources[0].name : '';
+  }
 });
 
 const fetchData = async (isNewSearch = false) => {
   if (loading.value) return;
 
-  // Add a guard clause to prevent errors when activeSource is temporarily unavailable during updates
   if (!activeSource.value) {
-    console.warn("fetchData called before activeSource is ready.");
+    images.value = [];
     return;
   }
 
-  // Handle empty keyword for sources that don't support it
   if (!activeSource.value.supportsEmptyQuery && !currentQuery.value) {
     ElMessage.warning('当前图源不支持空关键词搜索');
-    images.value = []; // Clear images if query is empty and not supported
-    noMoreData.value = true; // No more data for empty query
-    loading.value = false;
+    images.value = [];
+    noMoreData.value = true;
     return;
   }
 
@@ -110,7 +144,6 @@ const fetchData = async (isNewSearch = false) => {
     if (activeSource.value.supportsPagination) {
       newImages = await activeSource.value.search(currentQuery.value, currentPage.value);
     } else {
-      // For sources that don't support pagination, only fetch on new search
       if (isNewSearch) {
         newImages = await activeSource.value.search(currentQuery.value);
       }
@@ -120,13 +153,17 @@ const fetchData = async (isNewSearch = false) => {
       noMoreData.value = true;
     } else {
       images.value.push(...newImages);
-      if (activeSource.value.supportsPagination) { // Only increment page if pagination is supported
+      if (activeSource.value.supportsPagination) {
         currentPage.value++;
       } else {
-        // For non-paginated sources, if we got data, it's all we're getting
         noMoreData.value = true;
       }
     }
+  } catch (error) {
+    console.error(`Failed to fetch from ${activeSourceName.value}:`, error);
+    ElMessage.error(`图源 ${activeSourceName.value} 加载失败`);
+    emit('update-failure-count', { sourceName: activeSourceName.value });
+    noMoreData.value = true; // Prevent further loading attempts for this source
   } finally {
     loading.value = false;
   }
@@ -139,19 +176,20 @@ const handleSearch = (query) => {
 
 const searchOnEnter = (event) => {
   if (event.code === 'Enter') {
-    console.log('Enter key pressed', currentQuery.value);
     handleSearch(currentQuery.value);
   }
 };
 
 onMounted(() => {
-  // Load last used source
+  // Determine initial source
   const storedSourceDoc = utools.db.get('last_source');
-  if (storedSourceDoc) {
-    activeSourceName.value = storedSourceDoc.data;
+  const lastSourceName = storedSourceDoc ? storedSourceDoc.data : null;
+  if (lastSourceName && availableSources.value.some(s => s.name === lastSourceName)) {
+    activeSourceName.value = lastSourceName;
+  } else if (availableSources.value.length > 0) {
+    activeSourceName.value = availableSources.value[0].name;
   } else {
-    // If there is no saved source, manually trigger a search for the default source
-    handleSearch(currentQuery.value);
+    activeSourceName.value = '';
   }
 
   utools.onPluginEnter(({ type, payload }) => {
@@ -162,9 +200,17 @@ onMounted(() => {
     if (type === 'over') {
       utools.setSubInputValue(payload);
       currentQuery.value = payload;
-      handleSearch(payload);
+      // The watcher will trigger the search
+      if (activeSourceName.value) { 
+          handleSearch(payload);
+      }
     }
   });
+
+  // Initial search if a source is selected
+  if (activeSourceName.value) {
+      handleSearch("");
+  }
 
   addEventListener('keydown', searchOnEnter);
 });
@@ -173,9 +219,7 @@ onUnmounted(() => {
   removeEventListener('keydown', searchOnEnter);
 });
 
-
 const loadMore = () => {
-  // Use source settings to determine if pagination is supported
   if (activeSource.value && activeSource.value.supportsPagination) {
     fetchData(false);
   }
@@ -196,9 +240,6 @@ const loadMore = () => {
 }
 .settings-btn {
   margin-left: 1rem;
-}
-.search-bar-container {
-  padding: 1rem;
 }
 .content-area {
   flex-grow: 1;

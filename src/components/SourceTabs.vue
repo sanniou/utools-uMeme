@@ -1,82 +1,128 @@
 <template>
-  <div class="source-tabs-wrapper">
+  <div ref="scrollContainer" class="source-tabs-wrapper">
     <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-      <el-tab-pane v-for="source in sources" :key="source.name" :label="source.name" :name="source.name" />
+      <el-tab-pane
+        v-for="source in sources"
+        :key="source.name"
+        :name="source.name"
+      >
+        <template #label>
+          <span>{{ source.name }}</span>
+          <el-badge
+            v-if="failureCounts[source.name]"
+            :value="failureCounts[source.name]"
+            class="failure-badge"
+            type="danger"
+          />
+        </template>
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'; // Import watch
-import { sources } from "../sources";
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps({
-  modelValue: String // Define modelValue prop
+  modelValue: String,
+  sources: {
+    type: Array,
+    required: true,
+  },
+  failureCounts: {
+    type: Object,
+    required: true,
+  },
 });
 
-const emit = defineEmits(['sourceChange', 'update:modelValue']); // Add update:modelValue
+const emit = defineEmits(['update:modelValue']);
 
-const activeTab = ref(props.modelValue || sources[0].name); // Initialize activeTab with prop or first source
+const activeTab = ref(props.modelValue);
+const scrollContainer = ref(null);
+
+const handleWheel = (event) => {
+  const container = scrollContainer.value;
+  if (container && container.scrollWidth > container.clientWidth) {
+    event.preventDefault();
+    container.scrollLeft += event.deltaY;
+  }
+};
+
+onMounted(() => {
+  if (scrollContainer.value) {
+    scrollContainer.value.addEventListener('wheel', handleWheel, { passive: false });
+  }
+});
+
+onUnmounted(() => {
+  if (scrollContainer.value) {
+    scrollContainer.value.removeEventListener('wheel', handleWheel);
+  }
+});
 
 watch(() => props.modelValue, (newValue) => {
   activeTab.value = newValue;
 });
 
 const handleTabChange = (sourceName) => {
-  emit('sourceChange', sourceName);
   emit('update:modelValue', sourceName);
 };
 </script>
 
 <style scoped>
 .source-tabs-wrapper {
-  display: flex;
-  width: 100%;
-}
-
-/* Override Element Plus default styles for a cleaner look */
-.el-tabs {
   flex-grow: 1;
-  --el-tabs-header-height: 40px; /* Adjust height if needed */
+  overflow-x: auto; /* Enable horizontal scrolling */
+  white-space: nowrap; /* Prevent tabs from wrapping */
+  /* Hide scrollbar for a cleaner look */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
 }
 
-/* Style for the tab header itself */
+.source-tabs-wrapper::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
+}
+
+.el-tabs {
+  --el-tabs-header-height: 40px;
+}
+
 :deep(.el-tabs__header) {
-  border-bottom: none; /* Remove the main border below the tabs */
-  margin-bottom: 0; /* Remove default margin */
+  border-bottom: none;
+  margin-bottom: 0;
 }
 
-/* Style for individual tab items */
+:deep(.el-tabs__nav) {
+  display: inline-flex; /* Allow the nav to grow with tabs */
+}
+
 :deep(.el-tabs__item) {
-  padding: 0 15px; /* Adjust padding for a more compact look */
+  padding: 0 15px;
   height: var(--el-tabs-header-height);
   line-height: var(--el-tabs-header-height);
-  font-size: 14px; /* Adjust font size */
-  color: #606266; /* Default text color */
-  transition: all 0.3s ease; /* Smooth transitions */
-  border: none !important; /* Remove individual tab borders */
+  font-size: 14px;
+  color: #606266;
+  transition: all 0.3s ease;
+  border: none !important;
 }
 
-/* Hover state for tabs */
 :deep(.el-tabs__item:hover) {
-  color: #409eff; /* Element Plus primary color */
+  color: #409eff;
 }
 
-/* Active tab state */
 :deep(.el-tabs__item.is-active) {
-  color: #409eff; /* Active text color */
-  font-weight: 500; /* Slightly bolder */
+  color: #409eff;
+  font-weight: 500;
 }
 
-/* Active tab indicator (the blue line below the active tab) */
 :deep(.el-tabs__active-bar) {
-  height: 3px; /* Thicker indicator */
-  background-color: #409eff; /* Element Plus primary color */
-  border-radius: 2px; /* Slightly rounded corners */
+  height: 3px;
+  background-color: #409eff;
+  border-radius: 2px;
 }
 
-/* Remove the content area border if type="line" */
-:deep(.el-tabs__content) {
-  padding: 0; /* Remove default padding if content is directly below */
+.failure-badge {
+  margin-left: 8px;
+  transform: translateY(-2px); /* Adjust position slightly */
 }
 </style>

@@ -1,16 +1,69 @@
 <template>
   <div id="app">
-    <ImageSearch />
+    <ImageSearch
+      :disabled-sources="disabledSources"
+      :failure-counts="failureCounts"
+      @update-failure-count="updateFailureCount"
+      @settings-changed="loadSettings"
+      @clear-all-failures="handleClearAllFailures"
+    />
   </div>
 </template>
 
 <script setup>
-// 导入新的主页面组件
+import { ref, onMounted, reactive } from 'vue';
 import ImageSearch from './components/ImageSearch.vue';
+
+const DISABLED_SOURCES_DB = "disabled_sources";
+const FAILURE_COUNTS_DB = "source_failure_counts";
+
+const disabledSources = ref([]);
+const failureCounts = reactive({});
+
+const loadSettings = () => {
+  // Load disabled sources
+  const disabledDoc = utools.db.get(DISABLED_SOURCES_DB);
+  disabledSources.value = disabledDoc ? disabledDoc.data : [];
+
+  // Load failure counts
+  const failuresDoc = utools.db.get(FAILURE_COUNTS_DB);
+  // Clear existing reactive object before assigning new values
+  Object.keys(failureCounts).forEach(key => delete failureCounts[key]);
+  if (failuresDoc) {
+    Object.assign(failureCounts, failuresDoc.data);
+  }
+};
+
+const updateFailureCount = ({ sourceName }) => {
+  const currentCount = failureCounts[sourceName] || 0;
+  failureCounts[sourceName] = currentCount + 1;
+
+  const existingDoc = utools.db.get(FAILURE_COUNTS_DB);
+  utools.db.put({
+    _id: FAILURE_COUNTS_DB,
+    _rev: existingDoc ? existingDoc._rev : undefined,
+    data: failureCounts,
+  });
+};
+
+const handleClearAllFailures = () => {
+  const existingDoc = utools.db.get(FAILURE_COUNTS_DB);
+  if (existingDoc) {
+    utools.db.remove(FAILURE_COUNTS_DB);
+  }
+  Object.keys(failureCounts).forEach((key) => {
+    delete failureCounts[key];
+  });
+};
+
+onMounted(() => {
+  loadSettings();
+});
+
 </script>
 
 <style>
-/* 在此可以添加一些全局样式 */
+/* Global styles */
 body {
   margin: 0;
   padding: 0;
