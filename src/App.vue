@@ -21,22 +21,18 @@ const disabledSources = ref([]);
 const failureCounts = reactive({});
 
 const loadSettings = () => {
-  console.log("loadSettings called");
   // Load disabled sources
   const disabledDoc = utools.db.get(DISABLED_SOURCES_DB);
   disabledSources.value = disabledDoc ? disabledDoc.data : [];
-  console.log("Loaded disabled sources:", disabledSources.value);
 
   // Load failure counts
   const failuresDoc = utools.db.get(FAILURE_COUNTS_DB);
-  console.log("Retrieved failuresDoc from DB:", failuresDoc);
 
   // Clear existing reactive object before assigning new values
   Object.keys(failureCounts).forEach(key => delete failureCounts[key]);
   if (failuresDoc && failuresDoc.data) {
     Object.assign(failureCounts, failuresDoc.data);
   }
-  console.log("Current failureCounts state:", failureCounts);
 };
 
 const updateFailureCount = ({ sourceName }) => {
@@ -44,13 +40,11 @@ const updateFailureCount = ({ sourceName }) => {
   failureCounts[sourceName] = currentCount + 1;
 
   const existingDoc = utools.db.get(FAILURE_COUNTS_DB);
-  const putResult = utools.db.put({
+  utools.db.put({
     _id: FAILURE_COUNTS_DB,
     _rev: existingDoc ? existingDoc._rev : undefined,
     data: { ...failureCounts }, // Corrected: save a plain object
   });
-  console.log(`utools.db.put result for ${sourceName}:`, putResult);
-  console.log(`Updated failure count for ${sourceName}:`, failureCounts[sourceName]);
 };
 
 const handleClearAllFailures = () => {
@@ -61,7 +55,6 @@ const handleClearAllFailures = () => {
   Object.keys(failureCounts).forEach((key) => {
     delete failureCounts[key];
   });
-  console.log("Cleared all failure counts.", failureCounts);
 };
 
 onMounted(() => {
