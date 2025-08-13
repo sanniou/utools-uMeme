@@ -1,3 +1,4 @@
+
 import { ElMessage } from 'element-plus';
 
 // DuckDuckGo 的图片搜索 URL
@@ -8,7 +9,7 @@ const BASE_URL = 'https://duckduckgo.com/';
 const VQD_REGEX = /vqd=([\d-]+)&/;
 // 这个表达式寻找包含图片结果的 JS 字符串
 
-export async function searchDuckDuckGo(query) {
+async function search(query) {
   const url = `${BASE_URL}?q=${encodeURIComponent(query)}&iax=images&ia=images`;
 
   try {
@@ -54,3 +55,10 @@ export async function searchDuckDuckGo(query) {
     return [];
   }
 }
+
+export const duckduckgoSource = {
+    name: 'DuckDuckGo',
+    supportsPagination: false,
+    supportsEmptyQuery: false,
+    search,
+};

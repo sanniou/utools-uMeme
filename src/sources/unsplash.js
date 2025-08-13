@@ -1,3 +1,4 @@
+
 import { ElMessage } from 'element-plus';
 import utools_dev from "../js/utools_mock";
 
@@ -14,7 +15,7 @@ function getApiKey() {
   return config.data;
 }
 
-export async function searchUnsplash(query, page = 1, perPage = 30) {
+async function search(query, page = 1, perPage = 30) {
   const apiKey = getApiKey();
   if (!apiKey) return [];
 
@@ -41,3 +42,10 @@ export async function searchUnsplash(query, page = 1, perPage = 30) {
     return [];
   }
 }
+
+export const unsplashSource = {
+  name: 'Unsplash',
+  supportsPagination: true,
+  supportsEmptyQuery: true,
+  search,
+};

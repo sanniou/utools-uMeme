@@ -1,22 +1,22 @@
 <template>
   <div class="source-tabs-wrapper">
     <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-      <el-tab-pane v-for="source in sources" :key="source" :label="source" :name="source" />
+      <el-tab-pane v-for="source in sources" :key="source.name" :label="source.name" :name="source.name" />
     </el-tabs>
   </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'; // Import watch
+import { sources } from "../sources";
 
 const props = defineProps({
   modelValue: String // Define modelValue prop
 });
 
-const sources = ref(['Unsplash', 'DuckDuckGo']);
 const emit = defineEmits(['sourceChange', 'update:modelValue']); // Add update:modelValue
 
-const activeTab = ref(props.modelValue || sources.value[0]); // Initialize activeTab with prop or first source
+const activeTab = ref(props.modelValue || sources[0].name); // Initialize activeTab with prop or first source
 
 watch(() => props.modelValue, (newValue) => {
   activeTab.value = newValue;

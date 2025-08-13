@@ -1,7 +1,7 @@
 <template>
   <div class="image-search-container">
     <header class="search-header">
-      <SourceTabs v-model="activeSource" @sourceChange="handleSourceChange" />
+      <SourceTabs v-model="activeSourceName" />
       <el-button
         @click="settingsVisible = true"
         :icon="Setting"
@@ -34,10 +34,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
+import { ElMessage } from 'element-plus';
 import { Setting } from "@element-plus/icons-vue";
-import { searchUnsplash } from "../api/unsplash.js";
-import { searchDuckDuckGo } from "../api/duckduckgo.js";
+import { sources, getSource } from "../sources";
 import SourceTabs from "./SourceTabs.vue";
 import ImageGrid from "./ImageGrid.vue";
 import Settings from "./Settings.vue";
@@ -48,38 +48,46 @@ const loading = ref(false);
 const noMoreData = ref(false);
 const scrollContainer = ref(null);
 
-const activeSource = ref("Unsplash");
+const activeSourceName = ref(sources[0].name);
+const activeSource = computed(() => getSource(activeSourceName.value));
+
 const currentPage = ref(1);
 const currentQuery = ref("");
 
-// Define source settings
-const sourceSettings = {
-  Unsplash: {
-    supportsPagination: true,
-    supportsEmptyKeyword: true,
-    searchFunction: searchUnsplash
-  },
-  DuckDuckGo: {
-    supportsPagination: false,
-    supportsEmptyKeyword: false,
-    searchFunction: searchDuckDuckGo
-  }
-};
+// Watch for the active source name changing
+watch(activeSourceName, (newName) => {
+  // Save the new source to the database
+  const doc = utools.db.get('last_source');
+  utools.db.put({
+    _id: 'last_source',
+    data: newName,
+    ...(doc ? { _rev: doc._rev } : {})
+  });
+  // When the source changes, trigger a new search with the current query
+  handleSearch(currentQuery.value);
+});
 
-// 根据当前源判断是否禁用无限滚动
+
+// According to the current source, determine whether to disable infinite scrolling
 const isInfiniteScrollDisabled = computed(() => {
   if (loading.value || noMoreData.value) return true;
-  // Use source settings to determine if pagination is supported
-  return !sourceSettings[activeSource.value].supportsPagination;
+  // Add a guard clause to prevent errors when activeSource is temporarily unavailable during updates
+  if (!activeSource.value) return true;
+  return !activeSource.value.supportsPagination;
 });
 
 const fetchData = async (isNewSearch = false) => {
   if (loading.value) return;
 
-  const currentSourceSettings = sourceSettings[activeSource.value];
+  // Add a guard clause to prevent errors when activeSource is temporarily unavailable during updates
+  if (!activeSource.value) {
+    console.warn("fetchData called before activeSource is ready.");
+    return;
+  }
 
   // Handle empty keyword for sources that don't support it
-  if (!currentSourceSettings.supportsEmptyKeyword && !currentQuery.value) {
+  if (!activeSource.value.supportsEmptyQuery && !currentQuery.value) {
+    ElMessage.warning('当前图源不支持空关键词搜索');
     images.value = []; // Clear images if query is empty and not supported
     noMoreData.value = true; // No more data for empty query
     loading.value = false;
@@ -99,12 +107,12 @@ const fetchData = async (isNewSearch = false) => {
 
   try {
     let newImages = [];
-    if (currentSourceSettings.supportsPagination) {
-      newImages = await currentSourceSettings.searchFunction(currentQuery.value, currentPage.value);
+    if (activeSource.value.supportsPagination) {
+      newImages = await activeSource.value.search(currentQuery.value, currentPage.value);
     } else {
       // For sources that don't support pagination, only fetch on new search
       if (isNewSearch) {
-        newImages = await currentSourceSettings.searchFunction(currentQuery.value);
+        newImages = await activeSource.value.search(currentQuery.value);
       }
     }
 
@@ -112,7 +120,7 @@ const fetchData = async (isNewSearch = false) => {
       noMoreData.value = true;
     } else {
       images.value.push(...newImages);
-      if (currentSourceSettings.supportsPagination) { // Only increment page if pagination is supported
+      if (activeSource.value.supportsPagination) { // Only increment page if pagination is supported
         currentPage.value++;
       } else {
         // For non-paginated sources, if we got data, it's all we're getting
@@ -129,21 +137,9 @@ const handleSearch = (query) => {
   fetchData(true);
 };
 
-const handleSourceChange = (source) => {
-  activeSource.value = source;
-  // Save the new source to the database
-  const doc = utools.db.get('last_source');
-  utools.db.put({
-    _id: 'last_source',
-    data: source,
-    ...(doc ? { _rev: doc._rev } : {})
-  });
-  // 切换源时，立即使用当前输入框的内容进行一次新搜索
-  handleSearch(currentQuery.value);
-};
-
 const searchOnEnter = (event) => {
   if (event.code === 'Enter') {
+    console.log('Enter key pressed', currentQuery.value);
     handleSearch(currentQuery.value);
   }
 };
@@ -152,7 +148,10 @@ onMounted(() => {
   // Load last used source
   const storedSourceDoc = utools.db.get('last_source');
   if (storedSourceDoc) {
-    activeSource.value = storedSourceDoc.data;
+    activeSourceName.value = storedSourceDoc.data;
+  } else {
+    // If there is no saved source, manually trigger a search for the default source
+    handleSearch(currentQuery.value);
   }
 
   utools.onPluginEnter(({ type, payload }) => {
@@ -168,9 +167,6 @@ onMounted(() => {
   });
 
   addEventListener('keydown', searchOnEnter);
-
-  // Initial search
-  // handleSearch(currentQuery.value);
 });
 
 onUnmounted(() => {
@@ -180,7 +176,7 @@ onUnmounted(() => {
 
 const loadMore = () => {
   // Use source settings to determine if pagination is supported
-  if (sourceSettings[activeSource.value].supportsPagination) {
+  if (activeSource.value && activeSource.value.supportsPagination) {
     fetchData(false);
   }
 };
