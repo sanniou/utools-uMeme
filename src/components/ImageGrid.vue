@@ -1,15 +1,13 @@
 <template>
   <div class="image-grid-wrapper">
-    <div v-if="!images || images.length === 0" class="empty-state">
-      <el-empty description="暂无结果，换个关键词试试？" />
-    </div>
-    <div v-else class="image-grid">
-      <div v-for="image in images" :key="image.id" class="image-item" @click="copyImage(image.url)">
+    <!-- 状态处理已移至父组件，这里只负责渲染网格 -->
+    <TransitionGroup name="image-fade" tag="div" class="image-grid">
+      <div v-for="(image, index) in images" :key="image.id || image.url || index" class="image-item" @click="copyImage(image.url)">
         <el-tooltip :content="image.alt || '点击复制图片'" placement="top">
           <el-image :src="image.thumb" fit="cover" lazy />
         </el-tooltip>
       </div>
-    </div>
+    </TransitionGroup>
   </div>
 </template>
 
@@ -32,7 +30,8 @@ const copyImage = (url) => {
 
 <style scoped>
 .image-grid-wrapper {
-  padding: 1rem;
+  /* 计划 1.3: 移除水平内边距，因为它已由父组件的 .content-area 提供，保留垂直内边距 */
+  padding: 1rem 0;
 }
 .image-grid {
   display: grid;
@@ -43,15 +42,35 @@ const copyImage = (url) => {
   aspect-ratio: 1 / 1;
   border-radius: 8px;
   overflow: hidden;
-  background-color: #f0f2f5;
+  /* 计划 2.1 & 2.3: 使用白色背景和柔和阴影创建卡片式“浮起”效果 */
+  background-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   cursor: pointer;
-  transition: transform 0.2s ease;
+  /* 计划 2.3 & 3.1: 为阴影和变换添加平滑过渡，提升交互体验 */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .image-item:hover {
+  /* 计划 3.1: 悬停时放大并加深阴影，提供清晰的交互反馈 */
   transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 .el-image {
   width: 100%;
   height: 100%;
+}
+
+/* 计划 3.2: 为新加载的图片增加淡入和轻微上移动画 */
+.image-fade-enter-active {
+  transition: all 0.4s ease;
+}
+.image-fade-leave-active {
+  /* 确保在列表项离开时，它们能平滑地消失，并脱离文档流以避免布局抖动 */
+  transition: all 0.3s ease;
+  position: absolute;
+}
+.image-fade-enter-from,
+.image-fade-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
 }
 </style>

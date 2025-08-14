@@ -19,7 +19,32 @@
       v-infinite-scroll="loadMore"
       :infinite-scroll-disabled="isInfiniteScrollDisabled"
     >
-      <ImageGrid :images="images" v-loading="loading && images.length === 0" />
+      <!-- 1. 骨架屏：用于首次加载 -->
+      <ImageGridSkeleton v-if="loading && images.length === 0" />
+
+      <!-- 2. 错误状态：当加载失败时显示 -->
+      <div v-else-if="errorOccurred" class="state-container">
+        <el-result
+          icon="error"
+          :title="`图源 '${activeSourceName}' 加载失败`"
+          sub-title="请检查网络连接或图源设置，然后重试。"
+        >
+          <template #extra>
+            <el-button type="primary" @click="handleSearch(currentQuery)">重试</el-button>
+          </template>
+        </el-result>
+      </div>
+
+      <!-- 3. 内容展示：当有图片时，通过过渡动画展示网格 -->
+      <Transition v-else-if="images.length > 0" name="grid-fade" mode="out-in">
+        <ImageGrid :key="activeSourceName" :images="images" />
+      </Transition>
+
+      <!-- 4. 空状态：无搜索结果时显示 -->
+      <div v-else class="state-container">
+        <el-empty :description="emptyDescription" />
+      </div>
+
       <p v-if="loading && images.length > 0" class="loading-more">加载中...</p>
       <p v-if="noMoreData && images.length > 0" class="no-more-data">
         没有更多了
@@ -44,11 +69,12 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElResult, ElEmpty } from 'element-plus';
 import { Setting } from "@element-plus/icons-vue";
 import { sources as allSources, getSource } from "../sources";
 import SourceTabs from "./SourceTabs.vue";
 import ImageGrid from "./ImageGrid.vue";
+import ImageGridSkeleton from "./ImageGridSkeleton.vue";
 import Settings from "./Settings.vue";
 
 const props = defineProps({
@@ -72,6 +98,7 @@ const images = ref([]);
 const settingsVisible = ref(false);
 const loading = ref(false);
 const noMoreData = ref(false);
+const errorOccurred = ref(false); // 新增：用于追踪错误状态
 const scrollContainer = ref(null);
 const currentPage = ref(1);
 const currentQuery = ref("");
@@ -82,6 +109,14 @@ const availableSources = computed(() =>
 
 const activeSourceName = ref("");
 const activeSource = computed(() => getSource(activeSourceName.value));
+
+// 新增：动态生成空状态的描述文本
+const emptyDescription = computed(() => {
+  if (currentQuery.value) {
+    return `未找到与 “${currentQuery.value}” 相关的结果`;
+  }
+  return '输入关键词后回车，开始探索表情包世界';
+});
 
 // According to the current source, determine whether to disable infinite scrolling
 const isInfiniteScrollDisabled = computed(() => {
@@ -129,6 +164,7 @@ const fetchData = async (isNewSearch = false) => {
   }
 
   loading.value = true;
+  errorOccurred.value = false; // 开始新的请求前，重置错误状态
 
   if (isNewSearch) {
     currentPage.value = 1;
@@ -163,6 +199,7 @@ const fetchData = async (isNewSearch = false) => {
     console.error(`Failed to fetch from ${activeSourceName.value}:`, error);
     ElMessage.error(`图源 ${activeSourceName.value} 加载失败`);
     emit('update-failure-count', { sourceName: activeSourceName.value });
+    errorOccurred.value = true; // 标记发生了错误
     noMoreData.value = true; // Prevent further loading attempts for this source
   } finally {
     loading.value = false;
@@ -231,12 +268,18 @@ const loadMore = () => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #fff;
+  /* 计划 2.1: 将主背景色改为一个非常浅的灰色，增加层次感 */
+  background-color: #f7f8fa;
 }
 .search-header {
+  flex-shrink: 0; /* 防止头部在 flex 布局中被压缩 */
   display: flex;
   align-items: center;
-  padding: 1rem 1rem 0 1rem;
+  /* 计划 1.1: 使用 space-between 将设置按钮推到最右侧 */
+  justify-content: space-between;
+  /* 计划 1.1: 统一内边距并增加一个柔和的底部边框 */
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
 }
 .settings-btn {
   margin-left: 1rem;
@@ -244,11 +287,31 @@ const loadMore = () => {
 .content-area {
   flex-grow: 1;
   overflow-y: auto;
+  /* 计划 1.2: 增加左右内边距，创造呼吸感 */
+  padding: 0 1rem;
+}
+.state-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
 }
 .loading-more,
 .no-more-data {
   text-align: center;
-  color: #999;
+  /* 计划 2.2: 优化提示文字的视觉效果，使其不那么突兀 */
+  color: #a0aec0; /* 使用更柔和的灰色 */
+  font-size: 0.9rem; /* 适当缩小字号 */
   padding: 1rem;
+}
+
+/* 计划 3.2: 定义网格整体的淡入淡出动画效果 */
+.grid-fade-enter-active,
+.grid-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.grid-fade-enter-from,
+.grid-fade-leave-to {
+  opacity: 0;
 }
 </style>
