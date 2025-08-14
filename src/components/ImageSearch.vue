@@ -1,11 +1,26 @@
 <template>
   <div class="image-search-container">
     <header class="search-header">
-      <SourceTabs
+      <el-tabs
         v-model="activeSourceName"
-        :sources="availableSources"
-        :failure-counts="props.failureCounts"
-      />
+        class="source-tabs"
+      >
+        <el-tab-pane
+          v-for="source in availableSources"
+          :key="source.name"
+          :name="source.name"
+        >
+          <template #label>
+            <span>{{ source.name }}</span>
+            <el-badge
+              v-if="props.failureCounts[source.name]"
+              :value="props.failureCounts[source.name]"
+              class="failure-badge"
+              type="danger"
+            />
+          </template>
+        </el-tab-pane>
+      </el-tabs>
       <el-button
         @click="settingsVisible = true"
         :icon="Setting"
@@ -71,8 +86,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { ElMessage, ElResult, ElEmpty } from 'element-plus';
 import { Setting } from "@element-plus/icons-vue";
-import { sources as allSources, getSource } from "../sources";
-import SourceTabs from "./SourceTabs.vue";
+import { sources as allSources, getSource } from "../sources/index.js";
 import ImageGrid from "./ImageGrid.vue";
 import ImageGridSkeleton from "./ImageGridSkeleton.vue";
 import Settings from "./Settings.vue";
@@ -275,14 +289,18 @@ const loadMore = () => {
   flex-shrink: 0; /* 防止头部在 flex 布局中被压缩 */
   display: flex;
   align-items: center;
-  /* 计划 1.1: 使用 space-between 将设置按钮推到最右侧 */
   justify-content: space-between;
-  /* 计划 1.1: 统一内边距并增加一个柔和的底部边框 */
-  padding: 1rem;
+  /* 移除内边距，让 el-tabs 控制其高度和内边距，看起来更整体 */
+  padding: 0 1rem;
   border-bottom: 1px solid #e5e7eb;
+  gap: 1rem; /* 在 tabs 和设置按钮之间添加间距 */
+}
+.source-tabs {
+  flex-grow: 1; /* 让 tabs 占据尽可能多的空间 */
+  min-width: 0; /* Flex 布局关键点: 允许 tabs 容器收缩，从而触发其内部的滚动机制 */
 }
 .settings-btn {
-  margin-left: 1rem;
+  /* margin-left 已被父容器的 gap 替代，不再需要 */
 }
 .content-area {
   flex-grow: 1;
@@ -313,5 +331,44 @@ const loadMore = () => {
 .grid-fade-enter-from,
 .grid-fade-leave-to {
   opacity: 0;
+}
+
+/* 深度选择器，用于定制化 el-tabs 样式 */
+:deep(.source-tabs .el-tabs__header) {
+  margin: 0;
+  border-bottom: none; /* 移除 header 自身的边框，因为父元素已经有了 */
+}
+
+:deep(.source-tabs .el-tabs__nav-wrap::after) {
+  display: none; /* 移除 tab 导航条默认的下边框线 */
+}
+
+:deep(.source-tabs .el-tabs__item) {
+  height: 56px; /* 增加头部高度，使其更大气 */
+  padding: 0 20px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #606266;
+  transition: color 0.2s ease-in-out;
+}
+
+:deep(.source-tabs .el-tabs__item:hover) {
+  color: #303133; /* 使用更深邃的颜色作为悬停效果 */
+}
+
+:deep(.source-tabs .el-tabs__item.is-active) {
+  color: #409eff; /* Element Plus 品牌蓝 */
+}
+
+:deep(.source-tabs .el-tabs__active-bar) {
+  height: 3px;
+  background-color: #409eff;
+  border-radius: 2px;
+}
+
+/* 当标签页过多时，Element Plus 会自动添加滚动按钮，这里统一它们的高度 */
+:deep(.source-tabs .el-tabs__nav-next),
+:deep(.source-tabs .el-tabs__nav-prev) {
+  line-height: 56px;
 }
 </style>
