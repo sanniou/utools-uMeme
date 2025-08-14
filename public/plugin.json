@@ -7,8 +7,7 @@
   "preload": "preload.js",
   "homepage": "",
   "development": {
-    "main": "http://127.0.0.1:3000",
-    "preload": ""
+    "main": "http://127.0.0.1:3000"
   },
   "features": [
     {

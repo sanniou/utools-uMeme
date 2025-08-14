@@ -25,10 +25,38 @@ export default {
     func = funz;
   },
   callOnPluginEnter: function (data) {
-    func(data);
+    if (typeof func === 'function') {
+      func(data);
+    }
   },
   redirect: function (name, b) {
     console.log(`Mock utools.redirect: ${name}, ${b}`);
+  },
+  setSubInput: function(onChange, placeholder = '') {
+    console.log(`Mock utools.setSubInput called with placeholder: "${placeholder}"`);
+    // The callback `onChange` is for when the sub-input text changes.
+    // We don't need to simulate this for a basic mock.
+  },
+  setSubInputValue: function(value) {
+    console.log(`Mock utools.setSubInputValue called with value: "${value}"`);
+  },
+  copyImage: function(url) {
+    console.log(`Mock utools.copyImage called with URL: "${url}"`);
+    try {
+      // 在浏览器中，我们可以模拟将 URL 写入剪贴板来测试
+      navigator.clipboard.writeText(`(Mocked Image Copy for: ${url})`);
+      console.log('Mock: 已将模拟文本复制到剪贴板。');
+    } catch (err) {
+      console.error('Mock: 无法复制到剪贴板。', err);
+    }
+    return true; // 模拟成功
+  },
+  copyFile: function(url) {
+    console.log(`Mock utools.copyFile called with URL: "${url}"`);
+    return true; // 模拟成功
+  },
+  hideMainWindow: function() {
+    console.log('Mock utools.hideMainWindow called');
   },
   onPluginReady: function () { console.log('Mock utools.onPluginReady called'); },
   showNotification: function (msg) { console.log(`Mock utools.showNotification: ${msg}`); },
@@ -81,5 +109,8 @@ export default {
       return uuid;
     }
   },
+   // Mock for Element Plus's ElMessage
+  showNotification: function (message) {
+    console.log(`[Mocked ElMessage]: ${message}`);
+  },
 };
-

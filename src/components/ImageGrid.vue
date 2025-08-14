@@ -2,7 +2,7 @@
   <div class="image-grid-wrapper">
     <!-- 状态处理已移至父组件，这里只负责渲染网格 -->
     <TransitionGroup name="image-fade" tag="div" class="image-grid">
-      <div v-for="(image, index) in images" :key="image.id || image.url || index" class="image-item" @click="copyImage(image.url)">
+      <div v-for="(image, index) in images" :key="image.id || image.url || index" class="image-item" @click="copyImageToClipboard(image.url)">
         <el-tooltip :content="image.alt || '点击复制图片'" placement="top">
           <el-image :src="image.thumb" fit="cover" lazy />
         </el-tooltip>
@@ -12,8 +12,7 @@
 </template>
 
 <script setup>
-import { ElMessage } from 'element-plus';
-const utools = window.utools;
+import { copyImageToClipboard } from '../utils/imageTools.js';
 
 defineProps({
   images: {
@@ -21,11 +20,6 @@ defineProps({
     required: true,
   },
 });
-
-const copyImage = (url) => {
-  utools.copyImage(url);
-  ElMessage.success('图片已复制到剪贴板！');
-};
 </script>
 
 <style scoped>

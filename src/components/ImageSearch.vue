@@ -93,6 +93,11 @@ import { getSource } from "../sources/index.js";
 import ImageGrid from "./ImageGrid.vue";
 import ImageGridSkeleton from "./ImageGridSkeleton.vue";
 import Settings from "./Settings.vue";
+import utoolsMock from "../js/utools_mock.js";
+
+// 在开发环境（浏览器）中，window.utools 不存在，此时使用 mock 对象
+// 在 uTools 环境中，window.utools 由 uTools 注入，直接使用即可
+const utools = window.utools || utoolsMock;
 
 const props = defineProps({
   allSources: {
