@@ -77,6 +77,7 @@
       <Settings
         :failure-counts="props.failureCounts"
         @clear-all-failures="emit('clear-all-failures')"
+        @clear-failure="(sourceName) => emit('clear-failure', sourceName)"
       />
     </el-drawer>
   </div>
@@ -106,6 +107,7 @@ const emit = defineEmits([
   "update-failure-count",
   "settingsChanged",
   "clear-all-failures",
+  "clear-failure",
 ]);
 
 const images = ref([]);

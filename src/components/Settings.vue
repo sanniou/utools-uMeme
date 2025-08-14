@@ -20,22 +20,38 @@
           清空所有失败记录
         </el-button>
       </div>
-      <el-table :data="allSources" style="width: 100%">
-        <el-table-column prop="name" label="图源名称" width="180" />
-        <el-table-column label="失败次数" width="100">
-          <template #default="{ row }">
-            <span>{{ props.failureCounts[row.name] || 0 }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="启用">
-          <template #default="{ row }">
+      <!-- 重构为更现代化的列表布局 -->
+      <div class="source-list">
+        <div v-for="source in allSources" :key="source.name" class="source-item">
+          <div class="source-info">
+            <span class="source-name">{{ source.name }}</span>
+            <el-tag
+              v-if="props.failureCounts[source.name]"
+              type="danger"
+              size="small"
+              effect="light"
+              round
+            >
+              失败 {{ props.failureCounts[source.name] }} 次
+            </el-tag>
+          </div>
+          <div class="source-actions">
+            <el-button
+              v-if="props.failureCounts[source.name]"
+              @click="handleClearFailure(source.name)"
+              type="primary"
+              link
+              size="small"
+            >
+              清空记录
+            </el-button>
             <el-switch
-              v-model="enabledSources[row.name]"
-              @change="() => handleSourceToggle(row.name)"
+              v-model="enabledSources[source.name]"
+              @change="() => handleSourceToggle(source.name)"
             />
-          </template>
-        </el-table-column>
-      </el-table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -52,7 +68,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["clear-all-failures"]);
+const emit = defineEmits(["clear-all-failures", "clear-failure"]);
 
 const utools = window.utools;
 const apiKey = ref("");
@@ -97,20 +113,30 @@ const saveApiKey = () => {
 
 // Handle source enable/disable toggle
 const handleSourceToggle = (sourceName) => {
-  const disabledList = Object.entries(enabledSources)
-    .filter(([, isEnabled]) => !isEnabled)
-    .map(([name]) => name);
+  // 使用 Set 优化，逻辑更清晰，性能更好
+  const disabledDoc = utools.db.get(DISABLED_SOURCES_DB);
+  const disabledSet = new Set(disabledDoc?.data || []);
 
-  const existingDoc = utools.db.get(DISABLED_SOURCES_DB);
+  if (enabledSources[sourceName]) {
+    // 如果图源被启用，从禁用列表中移除
+    disabledSet.delete(sourceName);
+  } else {
+    // 如果图源被禁用，添加到禁用列表
+    disabledSet.add(sourceName);
+  }
+
   utools.db.put({
     _id: DISABLED_SOURCES_DB,
-    _rev: existingDoc ? existingDoc._rev : undefined,
-    data: disabledList,
+    _rev: disabledDoc?._rev,
+    data: Array.from(disabledSet), // 转回数组进行存储
   });
 
   ElMessage.success(
     `图源 ${sourceName} 已${enabledSources[sourceName] ? "启用" : "禁用"}`
   );
+};
+const handleClearFailure = (sourceName) => {
+  emit("clear-failure", sourceName);
 };
 
 // Clear all failure records
@@ -154,5 +180,32 @@ const handleClearAllFailures = () => {
 h3 {
   margin: 0;
   font-size: 1.2rem;
+}
+.source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem; /* 列表项之间的间距 */
+}
+.source-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.source-item:hover {
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.source-info, .source-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem; /* 内部元素间距 */
+}
+.source-name {
+  font-weight: 500;
 }
 </style>

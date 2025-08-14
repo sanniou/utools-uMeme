@@ -6,6 +6,7 @@
       @update-failure-count="updateFailureCount"
       @settings-changed="loadSettings"
       @clear-all-failures="handleClearAllFailures"
+      @clear-failure="handleClearFailure"
     />
   </div>
 </template>
@@ -55,6 +56,22 @@ const handleClearAllFailures = () => {
   Object.keys(failureCounts).forEach((key) => {
     delete failureCounts[key];
   });
+};
+
+const handleClearFailure = (sourceName) => {
+  if (failureCounts.hasOwnProperty(sourceName)) {
+    delete failureCounts[sourceName];
+
+    const existingDoc = utools.db.get(FAILURE_COUNTS_DB);
+    if (existingDoc) {
+      utools.db.put({
+        _id: FAILURE_COUNTS_DB,
+        _rev: existingDoc._rev,
+        data: { ...failureCounts },
+      });
+    }
+    ElMessage.success(`图源 ${sourceName} 的失败记录已清空`);
+  }
 };
 
 onMounted(() => {
