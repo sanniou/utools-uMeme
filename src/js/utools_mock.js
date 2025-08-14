@@ -113,8 +113,4 @@ export default {
       return uuid;
     }
   },
-   // Mock for Element Plus's ElMessage
-  showNotification: function (message) {
-    console.log(`[Mocked ElMessage]: ${message}`);
-  },
 };
