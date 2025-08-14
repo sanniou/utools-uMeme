@@ -61,6 +61,10 @@ export default {
   onPluginReady: function () { console.log('Mock utools.onPluginReady called'); },
   showNotification: function (msg) { console.log(`Mock utools.showNotification: ${msg}`); },
   shellBeep: function () { console.log('Mock utools.shellBeep called'); },
+  shellOpenExternal: function(url) {
+    console.log(`Mock utools.shellOpenExternal called with URL: "${url}"`);
+    window.open(url, '_blank');
+  },
   db: {
     put: function (doc) {
       if (!doc || !doc._id) {

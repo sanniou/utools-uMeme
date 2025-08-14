@@ -2,8 +2,8 @@
   <div class="image-grid-wrapper">
     <!-- 状态处理已移至父组件，这里只负责渲染网格 -->
     <TransitionGroup name="image-fade" tag="div" class="image-grid">
-      <div v-for="(image, index) in images" :key="image.id || image.url || index" class="image-item" @click="copyImageToClipboard(image.url)">
-        <el-tooltip :content="image.alt || '点击复制图片'" placement="top">
+      <div v-for="(image, index) in images" :key="image.id || image.url || index" class="image-item" @click="handleImageClick($event, image.url)">
+        <el-tooltip :content="image.alt || '点击复制图片, Ctrl+点击在浏览器中打开'" placement="top">
           <el-image :src="image.thumb" fit="cover" lazy />
         </el-tooltip>
       </div>
@@ -20,6 +20,14 @@ defineProps({
     required: true,
   },
 });
+
+const handleImageClick = (event, imageUrl) => {
+  if (event.ctrlKey) {
+    window.utools.shellOpenExternal(imageUrl);
+  } else {
+    copyImageToClipboard(imageUrl);
+  }
+};
 </script>
 
 <style scoped>

@@ -269,7 +269,7 @@ onMounted(() => {
   utools.onPluginEnter(({ type, payload }) => {
     utools.setSubInput(({ text }) => {
       currentQuery.value = text;
-    }, "鼠标操作:回车搜索,左击复制图片,中击查看大图,右击加入收藏～");
+    }, "鼠标操作:回车搜索,左击复制(Ctrl+点击打开),中击查看大图,右击加入收藏～");
 
     if (type === 'over') {
       utools.setSubInputValue(payload);
