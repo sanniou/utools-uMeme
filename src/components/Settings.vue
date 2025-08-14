@@ -20,55 +20,69 @@
           清空所有失败记录
         </el-button>
       </div>
-      <!-- 重构为更现代化的列表布局 -->
-      <div class="source-list">
-        <div v-for="source in allSources" :key="source.name" class="source-item">
-          <div class="source-info">
-            <span class="source-name">{{ source.name }}</span>
-            <el-tag
-              v-if="props.failureCounts[source.name]"
-              type="danger"
-              size="small"
-              effect="light"
-              round
-            >
-              失败 {{ props.failureCounts[source.name] }} 次
-            </el-tag>
+      <!-- 使用 draggable 组件实现拖拽排序 -->
+      <draggable
+        v-model="localSources"
+        item-key="name"
+        class="source-list"
+        handle=".drag-handle"
+        @end="onDragEnd"
+      >
+        <template #item="{ element: source }">
+          <div class="source-item">
+            <div class="source-info">
+              <el-icon class="drag-handle"><Rank /></el-icon>
+              <span class="source-name">{{ source.name }}</span>
+              <el-tag
+                v-if="props.failureCounts[source.name]"
+                type="danger"
+                size="small"
+                effect="light"
+                round
+              >
+                失败 {{ props.failureCounts[source.name] }} 次
+              </el-tag>
+            </div>
+            <div class="source-actions">
+              <el-button
+                v-if="props.failureCounts[source.name]"
+                @click="handleClearFailure(source.name)"
+                type="primary"
+                link
+                size="small"
+              >
+                清空记录
+              </el-button>
+              <el-switch
+                v-model="enabledSources[source.name]"
+                @change="() => handleSourceToggle(source.name)"
+              />
+            </div>
           </div>
-          <div class="source-actions">
-            <el-button
-              v-if="props.failureCounts[source.name]"
-              @click="handleClearFailure(source.name)"
-              type="primary"
-              link
-              size="small"
-            >
-              清空记录
-            </el-button>
-            <el-switch
-              v-model="enabledSources[source.name]"
-              @change="() => handleSourceToggle(source.name)"
-            />
-          </div>
-        </div>
-      </div>
+        </template>
+      </draggable>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from "vue";
+import { ref, onMounted, reactive, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { sources as allSources } from "../sources";
+import draggable from "vuedraggable";
+import { Rank } from "@element-plus/icons-vue";
 
 const props = defineProps({
+  allSources: {
+    type: Array,
+    required: true,
+  },
   failureCounts: {
     type: Object,
     required: true,
   },
 });
 
-const emit = defineEmits(["clear-all-failures", "clear-failure"]);
+const emit = defineEmits(["clear-all-failures", "clear-failure", "update-source-order"]);
 
 const utools = window.utools;
 const apiKey = ref("");
@@ -79,6 +93,12 @@ const DISABLED_SOURCES_DB = "disabled_sources";
 
 // Reactive states
 const enabledSources = reactive({});
+const localSources = ref([...props.allSources]);
+
+// 监听父组件传递的图源列表变化，同步到本地
+watch(() => props.allSources, (newSources) => {
+  localSources.value = [...newSources];
+});
 
 // Fetch all data on mount
 onMounted(() => {
@@ -91,7 +111,7 @@ onMounted(() => {
   // Load disabled sources
   const disabledDoc = utools.db.get(DISABLED_SOURCES_DB);
   const disabledList = disabledDoc ? disabledDoc.data : [];
-  allSources.forEach((source) => {
+  props.allSources.forEach((source) => {
     enabledSources[source.name] = !disabledList.includes(source.name);
   });
 });
@@ -137,6 +157,11 @@ const handleSourceToggle = (sourceName) => {
 };
 const handleClearFailure = (sourceName) => {
   emit("clear-failure", sourceName);
+};
+
+const onDragEnd = () => {
+  const newOrder = localSources.value.map(s => s.name);
+  emit('update-source-order', newOrder);
 };
 
 // Clear all failure records
@@ -204,6 +229,10 @@ h3 {
   display: flex;
   align-items: center;
   gap: 1rem; /* 内部元素间距 */
+}
+.drag-handle {
+  cursor: grab;
+  color: #9ca3af;
 }
 .source-name {
   font-weight: 500;

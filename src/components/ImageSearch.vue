@@ -75,9 +75,11 @@
       @closed="emit('settingsChanged')"
     >
       <Settings
+        :all-sources="props.allSources"
         :failure-counts="props.failureCounts"
         @clear-all-failures="emit('clear-all-failures')"
         @clear-failure="(sourceName) => emit('clear-failure', sourceName)"
+        @update-source-order="(newOrder) => emit('update-source-order', newOrder)"
       />
     </el-drawer>
   </div>
@@ -87,12 +89,16 @@
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { ElMessage, ElResult, ElEmpty } from 'element-plus';
 import { Setting } from "@element-plus/icons-vue";
-import { sources as allSources, getSource } from "../sources/index.js";
+import { getSource } from "../sources/index.js";
 import ImageGrid from "./ImageGrid.vue";
 import ImageGridSkeleton from "./ImageGridSkeleton.vue";
 import Settings from "./Settings.vue";
 
 const props = defineProps({
+  allSources: {
+    type: Array,
+    required: true,
+  },
   disabledSources: {
     type: Array,
     required: true,
@@ -108,6 +114,7 @@ const emit = defineEmits([
   "settingsChanged",
   "clear-all-failures",
   "clear-failure",
+  "update-source-order",
 ]);
 
 const images = ref([]);
@@ -119,8 +126,10 @@ const scrollContainer = ref(null);
 const currentPage = ref(1);
 const currentQuery = ref("");
 
+const isInitialized = ref(false);
+
 const availableSources = computed(() =>
-  allSources.filter((s) => !props.disabledSources.includes(s.name))
+  props.allSources.filter((s) => !props.disabledSources.includes(s.name))
 );
 
 const activeSourceName = ref("");
@@ -156,11 +165,29 @@ watch(activeSourceName, (newName, oldName) => {
   handleSearch(currentQuery.value);
 });
 
-// Watch for changes in available sources and reset active source if needed
+// 监听可用图源列表的变化，以响应式地初始化和重置激活的图源
 watch(availableSources, (newSources) => {
-  const activeSourceStillExists = newSources.some(s => s.name === activeSourceName.value);
-  if (!activeSourceStillExists) {
-    activeSourceName.value = newSources.length > 0 ? newSources[0].name : '';
+  // 如果列表为空，则不执行任何操作
+  if (newSources.length === 0) return;
+
+  // 初始化逻辑：仅在图源列表首次加载完成时执行一次
+  if (!isInitialized.value) {
+    const storedSourceDoc = utools.db.get('last_source');
+    const lastSourceName = storedSourceDoc ? storedSourceDoc.data : null;
+
+    // 如果找到了上次使用的图源且它依然可用，则恢复它
+    if (lastSourceName && newSources.some(s => s.name === lastSourceName)) {
+      activeSourceName.value = lastSourceName;
+    } else {
+      // 否则，默认选中列表中的第一个
+      activeSourceName.value = newSources[0].name;
+    }
+    isInitialized.value = true;
+  } else { // 状态重置逻辑：在后续的更新中，如果当前激活的图源被禁用，则自动切换
+    const activeSourceStillExists = newSources.some(s => s.name === activeSourceName.value);
+    if (!activeSourceStillExists) {
+      activeSourceName.value = newSources.length > 0 ? newSources[0].name : '';
+    }
   }
 });
 
@@ -234,17 +261,6 @@ const searchOnEnter = (event) => {
 };
 
 onMounted(() => {
-  // Determine initial source
-  const storedSourceDoc = utools.db.get('last_source');
-  const lastSourceName = storedSourceDoc ? storedSourceDoc.data : null;
-  if (lastSourceName && availableSources.value.some(s => s.name === lastSourceName)) {
-    activeSourceName.value = lastSourceName;
-  } else if (availableSources.value.length > 0) {
-    activeSourceName.value = availableSources.value[0].name;
-  } else {
-    activeSourceName.value = '';
-  }
-
   utools.onPluginEnter(({ type, payload }) => {
     utools.setSubInput(({ text }) => {
       currentQuery.value = text;
@@ -253,17 +269,9 @@ onMounted(() => {
     if (type === 'over') {
       utools.setSubInputValue(payload);
       currentQuery.value = payload;
-      // The watcher will trigger the search
-      if (activeSourceName.value) { 
-          handleSearch(payload);
-      }
+      // 搜索将由 activeSourceName 的监听器在图源初始化后自动触发
     }
   });
-
-  // Initial search if a source is selected
-  if (activeSourceName.value) {
-      handleSearch("");
-  }
 
   addEventListener('keydown', searchOnEnter);
 });

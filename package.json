@@ -17,8 +17,10 @@
     "friendly-time": "^1.1.1",
     "moment": "^2.30.1",
     "papi": "1.1.2",
+    "sortablejs": "^1.15.6",
     "vue": "^3.4.31",
-    "vue-router": "^4.4.0"
+    "vue-router": "^4.4.0",
+    "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
     "@types/node": "^24.2.0",
