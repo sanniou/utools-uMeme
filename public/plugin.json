@@ -13,8 +13,18 @@
     {
       "code": "meme_search",
       "explain": "搜索图片或表情包",
-      "cmds": ["meme", "表情包", "图片搜索"]
+      "cmds": [
+        "meme",
+        "表情包",
+        "图片搜索",
+        {
+          "type": "over",
+          "label": "meme",
+          "minLength": 1,
+          "maxLength": 20
+        }
+      ]
     }
   ],
-  "author": "Gemini"
+  "author": "Sanniou"
 }
