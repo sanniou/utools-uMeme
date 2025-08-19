@@ -12,11 +12,10 @@
   "features": [
     {
       "code": "meme_search",
-      "explain": "搜索图片或表情包",
+      "explain": "搜索表情包",
       "cmds": [
         "meme",
         "表情包",
-        "图片搜索",
         {
           "type": "over",
           "label": "meme",
