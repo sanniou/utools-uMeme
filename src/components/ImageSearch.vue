@@ -137,6 +137,7 @@ const availableSources = computed(() =>
   props.allSources.filter((s) => !props.disabledSources.includes(s.name))
 );
 
+const pluginEnterCompleted = ref(false);
 const activeSourceName = ref("");
 const activeSource = computed(() => getSource(activeSourceName.value));
 
@@ -155,7 +156,7 @@ const isInfiniteScrollDisabled = computed(() => {
   return !activeSource.value.supportsPagination;
 });
 
-// Watch for the active source name changing
+// Watch for the active source name changing and plugin enter completion
 watch(activeSourceName, (newName, oldName) => {
   if (newName === oldName || !newName) return;
 
@@ -166,8 +167,10 @@ watch(activeSourceName, (newName, oldName) => {
     data: newName,
     ...(doc ? { _rev: doc._rev } : {})
   });
-  // When the source changes, trigger a new search with the current query
-  handleSearch(currentQuery.value);
+});
+
+watch([activeSourceName, pluginEnterCompleted], ([newName, enterCompleted]) => {
+  if (newName && enterCompleted) handleSearch(currentQuery.value);
 });
 
 // 监听可用图源列表的变化，以响应式地初始化和重置激活的图源
@@ -276,6 +279,7 @@ onMounted(() => {
       currentQuery.value = payload;
       // 搜索将由 activeSourceName 的监听器在图源初始化后自动触发
     }
+    pluginEnterCompleted.value = true
   });
 
   addEventListener('keydown', searchOnEnter);
