@@ -11,10 +11,12 @@ const mockApi = {
    */
   copyImage: async (imageUrl) => {
     console.log(`[Mock API] 调用 copyImage，URL: "${imageUrl}"`);
+    // 增加一个延迟来模拟网络请求，方便观察加载状态
+    await new Promise(resolve => setTimeout(resolve, 1000));
     try {
       // 在浏览器中，我们可以模拟将 URL 写入剪贴板来测试。
       await navigator.clipboard.writeText(`(已模拟复制图片: ${imageUrl})`);
-      return { success: true, message: '已复制 (Mock)' };
+      return { success: true, message: '图片已复制 (Mock)' };
     } catch (err) {
       console.error('Mock: 写入剪贴板失败。', err);
       return { success: false, message: '复制失败 (Mock)' };
@@ -42,27 +44,35 @@ export async function copyImageToClipboard(imageUrl) {
     return;
   }
 
+  const loadingMessage = ElMessage({
+    message: '正在复制图片中...',
+    type: 'info',
+    duration: 0, // 持续显示，直到手动关闭
+  });
+
   try {
     // 将所有复杂的逻辑（下载、复制）委托给 preload 脚本的 API。
     const result = await api.copyImage(imageUrl);
 
     // 向用户展示操作结果。
     if (result.success) {
-      ElMessage.success(result.message);
+      ElMessage.success(result.message || '复制成功');
     } else {
-      ElMessage.error(result.message);
+      ElMessage.error(result.message || '复制失败');
       // 在真实的 uTools 环境中，我们也可以为关键错误显示系统通知。
       if (window.utools) {
         window.utools.showNotification(result.message);
       }
     }
   } catch (error) {
-    // 捕获 `api.copyImage` promise 意外拒绝等错误。
     const errorMessage = `发生未知错误: ${error.message}`;
     console.error('copyImageToClipboard 失败:', error);
     ElMessage.error(errorMessage);
     if (window.utools) {
       window.utools.showNotification(errorMessage);
     }
+  } finally {
+    // 无论成功或失败，都关闭加载提示
+    loadingMessage.close();
   }
 }
