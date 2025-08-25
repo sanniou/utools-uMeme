@@ -132,7 +132,7 @@ const currentPage = ref(1);
 // currentQuery 反映了输入框的实时内容
 const currentQuery = ref("");
 // committedQuery 代表用户确认搜索的关键词
-const committedQuery = ref("");
+const committedQuery = ref(null);
 
 const isInitialized = ref(false);
 
@@ -264,8 +264,8 @@ const handleSearch = (query) => {
 
 // 核心搜索触发器：当提交的搜索词或图源变化时，执行搜索
 watch([committedQuery, activeSourceName], () => {
-  // 确保图源已初始化，避免不必要的初始调用
-  if (!isInitialized.value) return;
+  // 确保图源和初始查询都已就绪，再执行搜索
+  if (!isInitialized.value || committedQuery.value === null) return;
   fetchData(true);
 });
 
