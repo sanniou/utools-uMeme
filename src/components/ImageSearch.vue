@@ -279,7 +279,7 @@ onMounted(() => {
   utools.onPluginEnter(({ type, payload }) => {
     utools.setSubInput(({ text }) => {
       currentQuery.value = text;
-    }, "鼠标操作:回车搜索,左击复制(Ctrl+点击打开),中击查看大图,右击加入收藏～");
+    }, "回车搜索, 左击复制图片, Ctrl+左击打开链接");
 
     let initialQuery = '';
     if (type === 'over') {
