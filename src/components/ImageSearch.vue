@@ -129,7 +129,10 @@ const noMoreData = ref(false);
 const errorOccurred = ref(false); // 新增：用于追踪错误状态
 const scrollContainer = ref(null);
 const currentPage = ref(1);
+// currentQuery 反映了输入框的实时内容
 const currentQuery = ref("");
+// committedQuery 代表用户确认搜索的关键词
+const committedQuery = ref("");
 
 const isInitialized = ref(false);
 
@@ -137,7 +140,6 @@ const availableSources = computed(() =>
   props.allSources.filter((s) => !props.disabledSources.includes(s.name))
 );
 
-const pluginEnterCompleted = ref(false);
 const activeSourceName = ref("");
 const activeSource = computed(() => getSource(activeSourceName.value));
 
@@ -156,7 +158,7 @@ const isInfiniteScrollDisabled = computed(() => {
   return !activeSource.value.supportsPagination;
 });
 
-// Watch for the active source name changing and plugin enter completion
+// 监听激活图源的变化，并将其持久化存储
 watch(activeSourceName, (newName, oldName) => {
   if (newName === oldName || !newName) return;
 
@@ -167,10 +169,6 @@ watch(activeSourceName, (newName, oldName) => {
     data: newName,
     ...(doc ? { _rev: doc._rev } : {})
   });
-});
-
-watch([activeSourceName, pluginEnterCompleted], ([newName, enterCompleted]) => {
-  if (newName && enterCompleted) handleSearch(currentQuery.value);
 });
 
 // 监听可用图源列表的变化，以响应式地初始化和重置激活的图源
@@ -207,7 +205,8 @@ const fetchData = async (isNewSearch = false) => {
     return;
   }
 
-  if (!activeSource.value.supportsEmptyQuery && !currentQuery.value) {
+  // 使用 committedQuery 进行搜索
+  if (!activeSource.value.supportsEmptyQuery && !committedQuery.value) {
     ElMessage.warning('当前图源不支持空关键词搜索');
     images.value = [];
     noMoreData.value = true;
@@ -228,11 +227,12 @@ const fetchData = async (isNewSearch = false) => {
 
   try {
     let newImages = [];
+    // 使用 committedQuery 进行搜索
     if (activeSource.value.supportsPagination) {
-      newImages = await activeSource.value.search(currentQuery.value, currentPage.value);
+      newImages = await activeSource.value.search(committedQuery.value, currentPage.value);
     } else {
       if (isNewSearch) {
-        newImages = await activeSource.value.search(currentQuery.value);
+        newImages = await activeSource.value.search(committedQuery.value);
       }
     }
 
@@ -257,10 +257,17 @@ const fetchData = async (isNewSearch = false) => {
   }
 };
 
+// handleSearch 的作用是“提交”一个新的搜索词
 const handleSearch = (query) => {
-  currentQuery.value = query;
-  fetchData(true);
+  committedQuery.value = query;
 };
+
+// 核心搜索触发器：当提交的搜索词或图源变化时，执行搜索
+watch([committedQuery, activeSourceName], () => {
+  // 确保图源已初始化，避免不必要的初始调用
+  if (!isInitialized.value) return;
+  fetchData(true);
+});
 
 const searchOnEnter = (event) => {
   if (event.code === 'Enter') {
@@ -274,12 +281,14 @@ onMounted(() => {
       currentQuery.value = text;
     }, "鼠标操作:回车搜索,左击复制(Ctrl+点击打开),中击查看大图,右击加入收藏～");
 
+    let initialQuery = '';
     if (type === 'over') {
       utools.setSubInputValue(payload);
-      currentQuery.value = payload;
-      // 搜索将由 activeSourceName 的监听器在图源初始化后自动触发
+      initialQuery = payload;
     }
-    pluginEnterCompleted.value = true
+    currentQuery.value = initialQuery;
+    // 插件进入时，提交初始关键词以触发第一次搜索
+    handleSearch(initialQuery);
   });
 
   addEventListener('keydown', searchOnEnter);
