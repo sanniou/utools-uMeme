@@ -33,6 +33,7 @@
       class="content-area"
       v-infinite-scroll="loadMore"
       :infinite-scroll-disabled="isInfiniteScrollDisabled"
+      :infinite-scroll-distance="20"
     >
       <!-- 1. 骨架屏：用于首次加载 -->
       <ImageGridSkeleton v-if="loading && images.length === 0" />
