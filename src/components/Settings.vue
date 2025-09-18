@@ -119,7 +119,11 @@ onMounted(() => {
 // Save Unsplash API Key
 const saveApiKey = () => {
   if (!apiKey.value) {
-    ElMessage.error("Access Key 不能为空");
+    ElMessage({
+      message: "Access Key 不能为空",
+      type: "error",
+      showClose: true,
+    });
     return;
   }
   const existingDoc = utools.db.get(API_KEY_DB);
@@ -128,7 +132,11 @@ const saveApiKey = () => {
     _rev: existingDoc ? existingDoc._rev : undefined,
     data: apiKey.value,
   });
-  ElMessage.success("API Key 保存成功！");
+  ElMessage({
+    message: "API Key 保存成功！",
+    type: "success",
+    showClose: true,
+  });
 };
 
 // Handle source enable/disable toggle
@@ -151,9 +159,11 @@ const handleSourceToggle = (sourceName) => {
     data: Array.from(disabledSet), // 转回数组进行存储
   });
 
-  ElMessage.success(
-    `图源 ${sourceName} 已${enabledSources[sourceName] ? "启用" : "禁用"}`
-  );
+  ElMessage({
+    message: `图源 ${sourceName} 已${enabledSources[sourceName] ? "启用" : "禁用"}`,
+    type: "success",
+    showClose: true,
+  });
 };
 const handleClearFailure = (sourceName) => {
   emit("clear-failure", sourceName);
@@ -173,7 +183,11 @@ const handleClearAllFailures = () => {
   })
     .then(() => {
       emit("clear-all-failures");
-      ElMessage.success("所有失败记录已清空！");
+      ElMessage({
+        message: "所有失败记录已清空！",
+        type: "success",
+        showClose: true,
+      });
     })
     .catch(() => {
       // User cancelled

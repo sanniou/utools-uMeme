@@ -40,7 +40,11 @@ const api = window.api || mockApi;
 export async function copyImageToClipboard(imageUrl) {
   if (!imageUrl) {
     console.error('copyImageToClipboard: 必须提供图片 URL。');
-    ElMessage.warning('图片链接无效');
+    ElMessage({
+      message: '图片链接无效',
+      type: 'warning',
+      showClose: true,
+    });
     return;
   }
 
@@ -56,9 +60,17 @@ export async function copyImageToClipboard(imageUrl) {
 
     // 向用户展示操作结果。
     if (result.success) {
-      ElMessage.success(result.message || '复制成功');
+      ElMessage({
+        message: result.message || '复制成功',
+        type: 'success',
+        showClose: true,
+      });
     } else {
-      ElMessage.error(result.message || '复制失败');
+      ElMessage({
+        message: result.message || '复制失败',
+        type: 'error',
+        showClose: true,
+      });
       // 在真实的 uTools 环境中，我们也可以为关键错误显示系统通知。
       if (window.utools) {
         window.utools.showNotification(result.message);
@@ -67,7 +79,11 @@ export async function copyImageToClipboard(imageUrl) {
   } catch (error) {
     const errorMessage = `发生未知错误: ${error.message}`;
     console.error('copyImageToClipboard 失败:', error);
-    ElMessage.error(errorMessage);
+    ElMessage({
+      message: errorMessage,
+      type: 'error',
+      showClose: true,
+    });
     if (window.utools) {
       window.utools.showNotification(errorMessage);
     }

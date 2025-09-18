@@ -96,7 +96,11 @@ const handleClearFailure = (sourceName) => {
         data: { ...failureCounts },
       });
     }
-    ElMessage.success(`图源 ${sourceName} 的失败记录已清空`);
+    ElMessage({
+      message: `图源 ${sourceName} 的失败记录已清空`,
+      type: 'success',
+      showClose: true,
+    });
   }
 };
 
@@ -111,7 +115,11 @@ const handleUpdateSourceOrder = (newOrder) => {
     _rev: doc?._rev,
     data: newOrder,
   });
-  ElMessage.success('图源顺序已保存');
+  ElMessage({
+    message: '图源顺序已保存',
+    type: 'success',
+    showClose: true,
+  });
 };
 
 onMounted(() => {

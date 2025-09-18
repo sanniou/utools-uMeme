@@ -208,7 +208,11 @@ const fetchData = async (isNewSearch = false) => {
 
   // 使用 committedQuery 进行搜索
   if (!activeSource.value.supportsEmptyQuery && !committedQuery.value) {
-    ElMessage.warning('当前图源不支持空关键词搜索');
+    ElMessage({
+      message: '当前图源不支持空关键词搜索',
+      type: 'warning',
+      showClose: true,
+    });
     images.value = [];
     noMoreData.value = true;
     return;
@@ -249,7 +253,11 @@ const fetchData = async (isNewSearch = false) => {
     }
   } catch (error) {
     console.error(`Failed to fetch from ${activeSourceName.value}:`, error);
-    ElMessage.error(`图源 ${activeSourceName.value} 加载失败`);
+    ElMessage({
+      message: `图源 ${activeSourceName.value} 加载失败`,
+      type: 'error',
+      showClose: true,
+    });
     emit('update-failure-count', { sourceName: activeSourceName.value });
     errorOccurred.value = true; // 标记发生了错误
     noMoreData.value = true; // Prevent further loading attempts for this source
