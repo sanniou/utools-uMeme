@@ -39,4 +39,8 @@ export const fabiaoqingSource = {
   supportsPagination: true,
   supportsEmptyQuery: true,
   search,
+  fetchHostMap: (host) => {
+    if (host === 'img.soutula.com') return 'https://fabiaoqing.com/';
+    return host;
+  },
 };

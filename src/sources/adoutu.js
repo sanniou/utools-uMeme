@@ -38,4 +38,8 @@ export const adoutuSource = {
   supportsPagination: true,
   supportsEmptyQuery: true,
   search,
+  fetchHostMap: (host) => {
+    if (host === 'img.adoutu.com') return 'https://www.adoutu.com/';
+    return host;
+  },
 };

@@ -4,6 +4,8 @@ const https = require('https');
 const crypto = require('crypto');
 const path = require('path');
 
+const BROWSER_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36';
+
 /**
  * 根据 URL 和配置生成一个本地文件路径
  * @param {string} url 图片链接
@@ -18,17 +20,6 @@ function composeFilePath(url, config = {}) {
   // 使用 path.join 保证跨平台路径的正确性
   return path.join(downloadPath, `${fileName}${fileSuffix}`);
 }
-
-/**
- * 针对特定图源域名返回正确的 Referer
- * @param {string} host 域名
- * @returns {string} Referer 值
- */
-const fetchHostMap = (host) => {
-  if (host === 'img.soutula.com') return 'https://fabiaoqing.com/';
-  if (host === 'img.adoutu.com') return 'https://www.adoutu.com/';
-  return host;
-};
 
 /**
  * 从远程 URL 下载文件到本地
@@ -77,11 +68,16 @@ function downloadRemoteFile(url, filePath, config) {
 /**
  * 下载图片，并进行缓存和有效性检查
  * @param {string} url 图片链接
+ * @param {object} source 图源对象
  * @returns {Promise<string|null>} 返回本地文件的 URI，失败则返回 null
  */
-async function downloadImage(url) {
+async function downloadImage(url, source) {
   const { host } = new URL(url);
-  const config = { headers: { Referer: fetchHostMap(host) } };
+  let referer = host;
+  if (source && source.fetchHostMap) {
+    referer = source.fetchHostMap(host);
+  }
+  const config = { headers: { Referer: referer } };
 
   const filePath = composeFilePath(url, config);
   // 为了兼容旧版缓存，检查是否存在 .jpg 结尾的旧文件
@@ -134,6 +130,49 @@ function tryCopy(destFile) {
 }
 
 /**
+ * Fetches a remote resource and returns it as a buffer.
+ * @param {string} url The URL to fetch.
+ * @param {object} config Request configuration, including headers.
+ * @returns {Promise<{buffer: Buffer, headers: object}>}
+ */
+function fetchImageBuffer(url, config) {
+  return new Promise((resolve, reject) => {
+    const requestModule = url.startsWith('https') ? https : http;
+    const { host, pathname, search } = new URL(url);
+    const requestPath = `${pathname}${search}`;
+
+    const req = requestModule.get(
+      { host, path: requestPath, headers: config.headers || {} },
+      (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          // Follow redirect
+          fetchImageBuffer(res.headers.location, config).then(resolve).catch(reject);
+          return;
+        }
+
+        if (res.statusCode !== 200) {
+          reject(new Error(`Request Failed. Status Code: ${res.statusCode}`));
+          return;
+        }
+
+        const data = [];
+        res.on('data', (chunk) => {
+          data.push(chunk);
+        });
+
+        res.on('end', () => {
+          resolve({ buffer: Buffer.concat(data), headers: res.headers });
+        });
+      }
+    );
+
+    req.on('error', (err) => {
+      reject(err);
+    });
+  });
+}
+
+/**
  * 这是暴露给渲染器进程的唯一 API 对象。
  * 它封装了所有 Node.js 相关的功能。
  */
@@ -141,14 +180,15 @@ window.api = {
   /**
    * 异步复制图片。
    * @param {string} imageUrl
+   * @param {object} source
    * @returns {Promise<{success: boolean, message: string}>}
    */
-  copyImage: async (imageUrl) => {
+  copyImage: async (imageUrl, source) => {
     if (!imageUrl) {
       return { success: false, message: '必须提供图片 URL。' };
     }
     try {
-      const localFileUri = await downloadImage(imageUrl);
+      const localFileUri = await downloadImage(imageUrl, source);
       if (!localFileUri) {
         return { success: false, message: '图片下载失败' };
       }
@@ -163,6 +203,40 @@ window.api = {
     } catch (error) {
       console.error('复制过程中发生错误:', error);
       return { success: false, message: `复制失败: ${error.message}` };
+    }
+  },
+
+  /**
+   * Fetches an image and returns it as a base64 data URL.
+   * This is used to bypass hotlink protection.
+   * @param {string} imageUrl
+   * @param {object} source
+   * @returns {Promise<string>}
+   */
+  fetchImageAsBase64: async (imageUrl, source) => {
+    if (!imageUrl) {
+      throw new Error('Image URL must be provided.');
+    }
+    try {
+      const { host } = new URL(imageUrl);
+      let referer = host;
+      if (source && source.fetchHostMap) {
+        referer = source.fetchHostMap(host);
+      }
+      const config = {
+        headers: {
+          'User-Agent': BROWSER_USER_AGENT,
+          'Referer': referer
+        },
+      };
+      const { buffer, headers } = await fetchImageBuffer(imageUrl, config);
+      const contentType = headers['content-type'] || 'image/jpeg'; // Default to jpeg
+      const base64Data = buffer.toString('base64');
+      return `data:${contentType};base64,${base64Data}`;
+    } catch (error) {
+      console.error(`Failed to fetch image as base64: ${imageUrl}`, error);
+      // Propagate error to be handled by the caller, which can then show a broken image link.
+      throw error;
     }
   }
 };

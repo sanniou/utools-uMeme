@@ -4,7 +4,7 @@
     <TransitionGroup name="image-fade" tag="div" class="image-grid">
       <div v-for="(image, index) in images" :key="image.id || image.url || index" class="image-item" @click="handleImageClick($event, image.url)">
         <el-tooltip :content="image.alt || '点击复制图片, Ctrl+点击在浏览器中打开'" placement="top">
-          <el-image :src="image.thumb" fit="cover" lazy />
+          <el-image :src="image.thumb" fit="cover" lazy referrerpolicy="no-referrer" />
         </el-tooltip>
       </div>
     </TransitionGroup>
@@ -14,9 +14,13 @@
 <script setup>
 import { copyImageToClipboard } from '../utils/imageTools.js';
 
-defineProps({
+const props = defineProps({
   images: {
     type: Array,
+    required: true,
+  },
+  source: {
+    type: Object,
     required: true,
   },
 });
@@ -25,7 +29,7 @@ const handleImageClick = (event, imageUrl) => {
   if (event.ctrlKey) {
     window.utools.shellOpenExternal(imageUrl);
   } else {
-    copyImageToClipboard(imageUrl);
+    copyImageToClipboard(imageUrl, props.source);
   }
 };
 </script>

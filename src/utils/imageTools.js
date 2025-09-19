@@ -21,6 +21,17 @@ const mockApi = {
       console.error('Mock: 写入剪贴板失败。', err);
       return { success: false, message: '复制失败 (Mock)' };
     }
+  },
+  /**
+   * @param {string} imageUrl
+   * @returns {Promise<string>}
+   */
+  fetchImageAsBase64: async (imageUrl) => {
+    console.log(`[Mock API] Calling fetchImageAsBase64 for "${imageUrl}"`);
+    // In a browser, we can't actually bypass CORS/hotlinking,
+    // so for the mock, we just return the original URL.
+    // The browser will try to fetch it directly.
+    return Promise.resolve(imageUrl);
   }
 };
 
@@ -36,8 +47,9 @@ const api = window.api || mockApi;
  * 负责处理异步操作并通过 ElMessage 提供用户界面反馈。
  *
  * @param {string} imageUrl 要复制的图片的 URL。
+ * @param {object} source 图源对象
  */
-export async function copyImageToClipboard(imageUrl) {
+export async function copyImageToClipboard(imageUrl, source) {
   if (!imageUrl) {
     console.error('copyImageToClipboard: 必须提供图片 URL。');
     ElMessage({
@@ -56,7 +68,7 @@ export async function copyImageToClipboard(imageUrl) {
 
   try {
     // 将所有复杂的逻辑（下载、复制）委托给 preload 脚本的 API。
-    const result = await api.copyImage(imageUrl);
+    const result = await api.copyImage(imageUrl, source);
 
     // 向用户展示操作结果。
     if (result.success) {
@@ -91,4 +103,27 @@ export async function copyImageToClipboard(imageUrl) {
     // 无论成功或失败，都关闭加载提示
     loadingMessage.close();
   }
+}
+
+/**
+ * Retrieves a proxied, base64-encoded version of an image URL.
+ * This helps bypass hotlink protection (403 errors).
+ * Falls back to the original URL if the proxy fails.
+ * @param {string} imageUrl The original image URL.
+ * @param {object} source The image source object.
+ * @returns {Promise<string>} The base64 data URL or the original URL on failure.
+ */
+export async function getProxiedImageUrl(imageUrl, source) {
+  // 如果图源定义了 fetchHostMap，则通过 preload 使用 base64 加载
+  if (source && source.fetchHostMap && imageUrl && imageUrl.startsWith('http')) {
+    try {
+      const base64Url = await api.fetchImageAsBase64(imageUrl, source);
+      return base64Url;
+    } catch (e) {
+      console.error(`Failed to proxy image, falling back to original URL: ${imageUrl}`, e);
+      return imageUrl;
+    }
+  }
+  // 否则，直接返回原始 URL
+  return imageUrl;
 }

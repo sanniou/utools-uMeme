@@ -91,6 +91,7 @@ import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { ElMessage, ElResult, ElEmpty } from 'element-plus';
 import { Setting } from "@element-plus/icons-vue";
 import { getSource } from "../sources/index.js";
+import { getProxiedImageUrl } from "../utils/imageTools.js"; // Import the new function
 import ImageGrid from "./ImageGrid.vue";
 import ImageGridSkeleton from "./ImageGridSkeleton.vue";
 import Settings from "./Settings.vue";
@@ -244,7 +245,14 @@ const fetchData = async (isNewSearch = false) => {
     if (newImages.length === 0) {
       noMoreData.value = true;
     } else {
-      images.value.push(...newImages);
+      const proxiedImages = await Promise.all(
+        newImages.map(async (img) => ({
+          ...img,
+          thumb: await getProxiedImageUrl(img.thumb, activeSource.value),
+        }))
+      );
+      images.value.push(...proxiedImages);
+
       if (activeSource.value.supportsPagination) {
         currentPage.value++;
       } else {
