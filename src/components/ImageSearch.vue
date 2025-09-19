@@ -53,7 +53,7 @@
 
       <!-- 3. 内容展示：当有图片时，通过过渡动画展示网格 -->
       <Transition v-else-if="images.length > 0" name="grid-fade" mode="out-in">
-        <ImageGrid :key="activeSourceName" :images="images" />
+        <ImageGrid :key="activeSourceName" :images="images" :source="activeSource" />
       </Transition>
 
       <!-- 4. 空状态：无搜索结果时显示 -->
