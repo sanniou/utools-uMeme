@@ -3,9 +3,13 @@
     <!-- 状态处理已移至父组件，这里只负责渲染网格 -->
     <TransitionGroup name="image-fade" tag="div" class="image-grid">
       <div v-for="(image, index) in images" :key="image.id || image.url || index" class="image-item" @click="handleImageClick($event, image.url)">
-        <el-tooltip :content="image.alt || '点击复制图片, Ctrl+点击在浏览器中打开'" placement="top">
-          <el-image :src="image.thumb" fit="cover" lazy referrerpolicy="no-referrer" />
-        </el-tooltip>
+        <el-image
+          :src="image.thumb"
+          :title="image.alt || '点击复制图片, Ctrl+点击在浏览器中打开'"
+          fit="cover"
+          lazy
+          referrerpolicy="no-referrer"
+        />
       </div>
     </TransitionGroup>
   </div>
