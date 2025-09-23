@@ -2,21 +2,31 @@
   <div class="image-grid-wrapper">
     <!-- 状态处理已移至父组件，这里只负责渲染网格 -->
     <TransitionGroup name="image-fade" tag="div" class="image-grid">
-      <div v-for="(image, index) in images" :key="image.id || image.url || index" class="image-item" @click="handleImageClick($event, image.url)">
+      <div v-for="(image, index) in images" :key="image.id || image.url || index" class="image-item" @click="handleImageClick($event, image)">
         <el-image
           :src="image.thumb"
-          :title="image.alt || '点击复制图片, Ctrl+点击在浏览器中打开'"
+          :title="image.alt || '单击复制图片, Alt+点击预览, Ctrl+点击在浏览器中打开'"
           fit="cover"
           lazy
           referrerpolicy="no-referrer"
         />
       </div>
     </TransitionGroup>
+    
+    <!-- 图片预览组件 -->
+    <ImagePreview
+      v-model:visible="previewVisible"
+      :image-url="previewImageUrl"
+      :alt-text="previewImageAlt"
+      :source="source"
+    />
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue';
 import { copyImageToClipboard } from '../utils/imageTools.js';
+import ImagePreview from './ImagePreview.vue';
 
 const props = defineProps({
   images: {
@@ -29,11 +39,23 @@ const props = defineProps({
   },
 });
 
-const handleImageClick = (event, imageUrl) => {
+// 预览相关状态
+const previewVisible = ref(false);
+const previewImageUrl = ref('');
+const previewImageAlt = ref('');
+
+const handleImageClick = (event, image) => {
   if (event.ctrlKey) {
-    window.utools.shellOpenExternal(imageUrl);
+    // Ctrl+点击：在浏览器中打开
+    window.utools.shellOpenExternal(image.url);
+  } else if (event.altKey) {
+    // Alt+点击：预览图片
+    previewImageUrl.value = image.url;
+    previewImageAlt.value = image.alt || '';
+    previewVisible.value = true;
   } else {
-    copyImageToClipboard(imageUrl, props.source);
+    // 普通点击：复制图片
+    copyImageToClipboard(image.url, props.source);
   }
 };
 </script>
