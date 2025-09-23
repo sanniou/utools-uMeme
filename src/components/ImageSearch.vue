@@ -1,8 +1,10 @@
 <template>
   <div class="image-search-container">
+    <!-- 头部区域：包含图源Tabs和设置按钮 -->
     <header class="search-header">
       <el-tabs
         v-model="activeSourceName"
+        :stretch="availableSources.length <= 5"
         class="source-tabs"
       >
         <el-tab-pane
@@ -26,6 +28,7 @@
         :icon="Setting"
         circle
         class="settings-btn"
+        aria-label="设置"
       />
     </header>
     <main
@@ -61,12 +64,17 @@
         <el-empty :description="emptyDescription" />
       </div>
 
-      <p v-if="loading && images.length > 0" class="loading-more">加载中...</p>
-      <p v-if="noMoreData && images.length > 0" class="no-more-data">
-        没有更多了
-      </p>
+      <!-- 5. 加载更多与末尾提示 -->
+      <div v-if="images.length > 0" class="state-indicator">
+        <div v-if="loading" class="loading-more">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          <span>加载中...</span>
+        </div>
+        <el-divider v-if="noMoreData" class="no-more-data">没有更多了</el-divider>
+      </div>
     </main>
 
+    <!-- 设置抽屉 -->
     <el-drawer
       v-model="settingsVisible"
       title="设置"
@@ -88,8 +96,8 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
-import { ElMessage, ElResult, ElEmpty } from 'element-plus';
-import { Setting } from "@element-plus/icons-vue";
+import { ElMessage, ElResult, ElEmpty, ElIcon, ElDivider } from 'element-plus';
+import { Setting, Loading } from "@element-plus/icons-vue";
 import { getSource } from "../sources/index.js";
 import { getProxiedImageUrl } from "../utils/imageTools.js"; // Import the new function
 import ImageGrid from "./ImageGrid.vue";
@@ -341,7 +349,7 @@ const loadMore = () => {
   gap: 1rem; /* 在 tabs 和设置按钮之间添加间距 */
 }
 .source-tabs {
-  flex-grow: 1; /* 让 tabs 占据尽可能多的空间 */
+  flex-grow: 1; /* 让 tabs 占据尽可能多的空间，为 stretch 属性提供基础 */
   min-width: 0; /* Flex 布局关键点: 允许 tabs 容器收缩，从而触发其内部的滚动机制 */
 }
 .settings-btn {
@@ -354,10 +362,11 @@ const loadMore = () => {
   padding: 0 1rem;
 }
 .state-container {
+  /* 确保状态容器在垂直方向上居中，并撑起一定高度 */
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100%;
+  min-height: 300px;
 }
 .loading-more,
 .no-more-data {
@@ -366,6 +375,18 @@ const loadMore = () => {
   color: #a0aec0; /* 使用更柔和的灰色 */
   font-size: 0.9rem; /* 适当缩小字号 */
   padding: 1rem;
+}
+
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.state-indicator {
+  /* 为底部提示信息增加一个统一的容器，方便管理边距 */
+  padding: 1rem 0;
 }
 
 /* 计划 3.2: 定义网格整体的淡入淡出动画效果 */
