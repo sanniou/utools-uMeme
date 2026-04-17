@@ -2,27 +2,59 @@
   <div class="image-search-container">
     <!-- 头部区域：包含图源Tabs和设置按钮 -->
     <header class="search-header">
-      <el-tabs
-        v-model="activeSourceName"
-        :stretch="availableSources.length <= 5"
-        class="source-tabs"
-      >
-        <el-tab-pane
-          v-for="source in availableSources"
-          :key="source.name"
-          :name="source.name"
-        >
-          <template #label>
-            <span>{{ source.name }}</span>
-            <el-badge
-              v-if="props.failureCounts[source.name]"
-              :value="props.failureCounts[source.name]"
-              class="failure-badge"
-              type="danger"
-            />
-          </template>
-        </el-tab-pane>
-      </el-tabs>
+       <div class="source-tabs-container">
+         <el-tabs
+           v-model="activeSourceName"
+           class="source-tabs"
+           type="card"
+         >
+           <el-tab-pane
+             v-for="source in visibleSources"
+             :key="source.name"
+             :name="source.name"
+           >
+             <template #label>
+               <span class="tab-label">{{ source.name }}</span>
+               <el-badge
+                 v-if="props.failureCounts[source.name]"
+                 :value="props.failureCounts[source.name]"
+                 class="failure-badge"
+                 type="danger"
+                 :hidden="!props.failureCounts[source.name]"
+               />
+             </template>
+           </el-tab-pane>
+         </el-tabs>
+         <!-- 更多图源下拉菜单 -->
+         <el-dropdown
+           v-if="availableSources.length > visibleSources.length"
+           @command="(name) => activeSourceName = name"
+           placement="bottom-end"
+         >
+           <el-button text class="more-sources-btn">
+             更多 <el-icon><ArrowDown /></el-icon>
+           </el-button>
+           <template #dropdown>
+             <el-dropdown-menu>
+               <el-dropdown-item
+                 v-for="source in hiddenSources"
+                 :key="source.name"
+                 :command="source.name"
+                 :class="{ 'is-active': activeSourceName === source.name }"
+               >
+                 <span>{{ source.name }}</span>
+                 <el-badge
+                   v-if="props.failureCounts[source.name]"
+                   :value="props.failureCounts[source.name]"
+                   type="danger"
+                   size="small"
+                   style="margin-left: 8px"
+                 />
+               </el-dropdown-item>
+             </el-dropdown-menu>
+           </template>
+         </el-dropdown>
+       </div>
       <el-button
         @click="settingsVisible = true"
         :icon="Setting"
@@ -97,7 +129,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { ElMessage, ElResult, ElEmpty, ElIcon, ElDivider } from 'element-plus';
-import { Setting, Loading } from "@element-plus/icons-vue";
+import { Setting, Loading, ArrowDown } from "@element-plus/icons-vue";
 import { getSource } from "../sources/index.js";
 import { getProxiedImageUrl } from "../utils/imageTools.js"; // Import the new function
 import ImageGrid from "./ImageGrid.vue";
@@ -152,6 +184,39 @@ const availableSources = computed(() =>
 
 const activeSourceName = ref("");
 const activeSource = computed(() => getSource(activeSourceName.value));
+
+// 搜索取消控制器 - 解决竞态条件
+const abortController = ref(null);
+
+// Tabs 显示优化 - 智能控制可见标签数量
+const MAX_VISIBLE_TABS = 6;
+const visibleSources = computed(() => {
+  const all = availableSources.value;
+  if (all.length <= MAX_VISIBLE_TABS) return all;
+  
+  // 优先显示：激活项 + 最近使用 + 失败次数少的
+  const activeIndex = all.findIndex(s => s.name === activeSourceName.value);
+  const result = [];
+  
+  // 激活项始终可见
+  if (activeIndex >= 0) {
+    result.push(all[activeIndex]);
+  }
+  
+  // 填充剩余位置
+  for (const source of all) {
+    if (result.length >= MAX_VISIBLE_TABS) break;
+    if (result.find(s => s.name === source.name)) continue;
+    result.push(source);
+  }
+  
+  return result;
+});
+
+const hiddenSources = computed(() => {
+  const visibleNames = new Set(visibleSources.value.map(s => s.name));
+  return availableSources.value.filter(s => !visibleNames.has(s.name));
+});
 
 // 新增：动态生成空状态的描述文本
 const emptyDescription = computed(() => {
@@ -227,6 +292,15 @@ const fetchData = async (isNewSearch = false) => {
     return;
   }
 
+  // 取消上一个未完成的请求
+  if (abortController.value) {
+    abortController.value.abort();
+  }
+
+  // 创建新的取消控制器
+  abortController.value = new AbortController();
+  const signal = abortController.value.signal;
+
   loading.value = true;
   errorOccurred.value = false; // 开始新的请求前，重置错误状态
 
@@ -243,12 +317,15 @@ const fetchData = async (isNewSearch = false) => {
     let newImages = [];
     // 使用 committedQuery 进行搜索
     if (activeSource.value.supportsPagination) {
-      newImages = await activeSource.value.search(committedQuery.value, currentPage.value);
+      newImages = await activeSource.value.search(committedQuery.value, currentPage.value, signal);
     } else {
       if (isNewSearch) {
-        newImages = await activeSource.value.search(committedQuery.value);
+        newImages = await activeSource.value.search(committedQuery.value, signal);
       }
     }
+
+    // 如果请求已被取消，直接返回不处理结果
+    if (signal.aborted) return;
 
     if (newImages.length === 0) {
       noMoreData.value = true;
@@ -259,6 +336,10 @@ const fetchData = async (isNewSearch = false) => {
           thumb: await getProxiedImageUrl(img.thumb, activeSource.value),
         }))
       );
+      
+      // 再次检查是否已被取消
+      if (signal.aborted) return;
+      
       images.value.push(...proxiedImages);
 
       if (activeSource.value.supportsPagination) {
@@ -268,6 +349,11 @@ const fetchData = async (isNewSearch = false) => {
       }
     }
   } catch (error) {
+    // 忽略主动取消的错误
+    if (error.name === 'AbortError') {
+      return;
+    }
+    
     console.error(`Failed to fetch from ${activeSourceName.value}:`, error);
     ElMessage({
       message: `图源 ${activeSourceName.value} 加载失败`,
@@ -278,7 +364,11 @@ const fetchData = async (isNewSearch = false) => {
     errorOccurred.value = true; // 标记发生了错误
     noMoreData.value = true; // Prevent further loading attempts for this source
   } finally {
-    loading.value = false;
+    // 只有当前请求未被取消时才重置loading状态
+    if (!signal.aborted) {
+      loading.value = false;
+    }
+    abortController.value = null;
   }
 };
 
@@ -335,22 +425,48 @@ const loadMore = () => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  /* 计划 2.1: 将主背景色改为一个非常浅的灰色，增加层次感 */
-  background-color: #f7f8fa;
+  /* 改进UI: 使用更现代的渐变背景，增强视觉层次 */
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
 }
 .search-header {
   flex-shrink: 0; /* 防止头部在 flex 布局中被压缩 */
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* 移除内边距，让 el-tabs 控制其高度和内边距，看起来更整体 */
-  padding: 0 1rem;
-  border-bottom: 1px solid #e5e7eb;
-  gap: 1rem; /* 在 tabs 和设置按钮之间添加间距 */
+  /* 改进UI: 增加内边距，使用更现代的边框和阴影 */
+  padding: 0.4rem 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  gap: 0.8rem; /* 在 tabs 和设置按钮之间添加间距 */
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
+.source-tabs-container {
+  display: flex;
+  align-items: center;
+  flex-grow: 1;
+  min-width: 0;
+  gap: 8px;
+}
+
 .source-tabs {
-  flex-grow: 1; /* 让 tabs 占据尽可能多的空间，为 stretch 属性提供基础 */
-  min-width: 0; /* Flex 布局关键点: 允许 tabs 容器收缩，从而触发其内部的滚动机制 */
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.more-sources-btn {
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.tab-label {
+  display: inline-block;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .settings-btn {
   /* margin-left 已被父容器的 gap 替代，不再需要 */
@@ -358,23 +474,28 @@ const loadMore = () => {
 .content-area {
   flex-grow: 1;
   overflow-y: auto;
-  /* 计划 1.2: 增加左右内边距，创造呼吸感 */
-  padding: 0 1rem;
+  /* 改进UI: 增加内边距，使用更现代的间距 */
+  padding: 1.2rem;
 }
 .state-container {
-  /* 确保状态容器在垂直方向上居中，并撑起一定高度 */
+  /* 改进UI: 优化状态容器样式，增加圆角和阴影 */
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 300px;
+  background-color: rgba(255, 255, 255, 0.6);
+  border-radius: 16px;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 .loading-more,
 .no-more-data {
   text-align: center;
-  /* 计划 2.2: 优化提示文字的视觉效果，使其不那么突兀 */
-  color: #a0aec0; /* 使用更柔和的灰色 */
+  /* 改进UI: 使用更现代的字体和颜色 */
+  color: #718096; /* 使用更柔和的灰色 */
   font-size: 0.9rem; /* 适当缩小字号 */
   padding: 1rem;
+  font-weight: 500;
 }
 
 .loading-more {
@@ -382,21 +503,25 @@ const loadMore = () => {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  /* 改进UI: 增加动画效果 */
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
 .state-indicator {
-  /* 为底部提示信息增加一个统一的容器，方便管理边距 */
-  padding: 1rem 0;
+  /* 改进UI: 优化底部提示信息容器样式 */
+  padding: 1.2rem 0;
+  margin-top: 0.5rem;
 }
 
-/* 计划 3.2: 定义网格整体的淡入淡出动画效果 */
+/* 改进UI: 优化网格整体的淡入淡出动画效果 */
 .grid-fade-enter-active,
 .grid-fade-leave-active {
-  transition: opacity 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .grid-fade-enter-from,
 .grid-fade-leave-to {
   opacity: 0;
+  transform: translateY(10px);
 }
 
 /* 深度选择器，用于定制化 el-tabs 样式 */
@@ -410,31 +535,74 @@ const loadMore = () => {
 }
 
 :deep(.source-tabs .el-tabs__item) {
-  height: 56px; /* 增加头部高度，使其更大气 */
-  padding: 0 20px;
-  font-size: 15px;
+  height: 44px; /* 更紧凑的高度，适配 uTools 窗口 */
+  padding: 0 14px;
+  font-size: 13px;
   font-weight: 500;
   color: #606266;
-  transition: color 0.2s ease-in-out;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-radius: 8px 8px 0 0;
 }
 
 :deep(.source-tabs .el-tabs__item:hover) {
   color: #303133; /* 使用更深邃的颜色作为悬停效果 */
+  background-color: rgba(64, 158, 255, 0.05);
 }
 
 :deep(.source-tabs .el-tabs__item.is-active) {
   color: #409eff; /* Element Plus 品牌蓝 */
+  background-color: rgba(64, 158, 255, 0.08);
 }
 
 :deep(.source-tabs .el-tabs__active-bar) {
   height: 3px;
   background-color: #409eff;
   border-radius: 2px;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Card 模式适配 */
+:deep(.source-tabs.el-tabs--card .el-tabs__header) {
+  border-bottom: none;
+}
+
+:deep(.source-tabs.el-tabs--card .el-tabs__item) {
+  border: none;
+  background: transparent;
+}
+
+:deep(.source-tabs.el-tabs--card .el-tabs__item.is-active) {
+  background-color: rgba(64, 158, 255, 0.1);
+  border-bottom: none;
 }
 
 /* 当标签页过多时，Element Plus 会自动添加滚动按钮，这里统一它们的高度 */
 :deep(.source-tabs .el-tabs__nav-next),
 :deep(.source-tabs .el-tabs__nav-prev) {
-  line-height: 56px;
+  line-height: 44px;
+  color: #606266;
+  transition: all 0.2s ease;
+}
+
+:deep(.source-tabs .el-tabs__nav-next:hover),
+:deep(.source-tabs .el-tabs__nav-prev:hover) {
+  color: #409eff;
+}
+
+/* Dropdown 样式优化 */
+:deep(.el-dropdown-menu__item.is-active) {
+  color: #409eff;
+  font-weight: 500;
+  background-color: rgba(64, 158, 255, 0.05);
+}
+
+/* 改进UI: 添加脉冲动画 */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 </style>

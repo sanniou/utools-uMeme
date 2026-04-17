@@ -30,6 +30,20 @@ export default defineConfig({
   // 移除 define: { "process.env": {} }，Vite 会自动处理环境变量
   build: {
     // 生产环境启用代码压缩
-    minify: false,
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'element-plus': ['element-plus'],
+          'vue-vendor': ['vue', 'vue-router'],
+        },
+      },
+    },
   },
 });

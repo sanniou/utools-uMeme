@@ -3,13 +3,14 @@
     <!-- 状态处理已移至父组件，这里只负责渲染网格 -->
     <TransitionGroup name="image-fade" tag="div" class="image-grid">
       <div v-for="(image, index) in images" :key="image.id || image.url || index" class="image-item" @click="handleImageClick($event, image)">
-        <el-image
-          :src="image.thumb"
-          :title="image.alt || '单击复制图片, Alt+点击预览, Ctrl+点击在浏览器中打开'"
-          fit="cover"
-          lazy
-          referrerpolicy="no-referrer"
-        />
+         <el-image
+           :src="image.thumb"
+           :title="image.alt || '单击复制图片, Alt+点击预览, Ctrl+点击在浏览器中打开'"
+           fit="cover"
+           lazy
+           referrerpolicy="no-referrer"
+           @error="handleImageError($event, image)"
+         />
       </div>
     </TransitionGroup>
     
@@ -58,6 +59,13 @@ const handleImageClick = (event, image) => {
     copyImageToClipboard(image.url, props.source);
   }
 };
+
+const handleImageError = (event, image) => {
+  // 图片加载失败时，静默降级 - 不显示占位符以避免UI混乱
+  // 图片依然可以点击复制，实际复制时会通过preload层下载
+  const imgElement = event.target;
+  imgElement.style.opacity = '0.4';
+};
 </script>
 
 <style scoped>
@@ -67,24 +75,29 @@ const handleImageClick = (event, image) => {
 }
 .image-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1.2rem;
 }
 .image-item {
   aspect-ratio: 1 / 1;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
-  /* 计划 2.1 & 2.3: 使用白色背景和柔和阴影创建卡片式“浮起”效果 */
+  /* 改进UI: 使用更现代的卡片设计，增强层次感 */
   background-color: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   cursor: pointer;
-  /* 计划 2.3 & 3.1: 为阴影和变换添加平滑过渡，提升交互体验 */
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  /* 改进UI: 增强过渡效果，提升交互体验 */
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              border-radius 0.25s ease;
+  /* 添加边框增强卡片感 */
+  border: 1px solid rgba(0, 0, 0, 0.04);
 }
 .image-item:hover {
-  /* 计划 3.1: 悬停时放大并加深阴影，提供清晰的交互反馈 */
-  transform: scale(1.05);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  /* 改进UI: 优化悬停效果，增加弹性动画 */
+  transform: scale(1.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-radius: 16px;
 }
 .el-image {
   width: 100%;
@@ -93,16 +106,16 @@ const handleImageClick = (event, image) => {
 
 /* 计划 3.2: 为新加载的图片增加淡入和轻微上移动画 */
 .image-fade-enter-active {
-  transition: all 0.4s ease;
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .image-fade-leave-active {
   /* 确保在列表项离开时，它们能平滑地消失，并脱离文档流以避免布局抖动 */
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: absolute;
 }
 .image-fade-enter-from,
 .image-fade-leave-to {
   opacity: 0;
-  transform: translateY(20px);
+  transform: translateY(30px) scale(0.9);
 }
 </style>

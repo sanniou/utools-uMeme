@@ -2,7 +2,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
-async function search(query, page = 1) {
+async function search(query, page = 1, signal) {
   let url;
   let params;
 
@@ -15,7 +15,7 @@ async function search(query, page = 1) {
   }
 
   try {
-    const config = { method: 'get', url, params };
+    const config = { method: 'get', url, params, signal };
     const response = await axios(config);
     const $ = cheerio.load(response.data);
 
@@ -28,6 +28,10 @@ async function search(query, page = 1) {
       alt: query || '斗图啦表情',
     }));
   } catch (error) {
+    if (error.name === 'CanceledError' || error.name === 'AbortError') {
+      // 请求被主动取消，静默处理
+      return [];
+    }
     console.error('Failed to fetch from Doutula:', error);
     throw error;
   }

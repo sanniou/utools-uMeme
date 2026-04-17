@@ -1,3 +1,5 @@
+import { sourceRepository } from '../core/SourceRepository.js';
+
 import { unsplashSource } from './unsplash';
 import { duckduckgoSource } from './duckduckgo';
 import { sogouSource } from './sogou';
@@ -13,7 +15,8 @@ import { dbbqbSource } from './dbbqb';
 import { baiduSource } from './baidu';
 import { doulegetuSource } from './doulegetu';
 
-export const sources = [
+// 所有图源适配器
+const sourceDefinitions = [
   unsplashSource,
   duckduckgoSource,
   sogouSource,
@@ -30,6 +33,11 @@ export const sources = [
   doulegetuSource,
 ];
 
-export const getSource = (name) => {
-    return sources.find(s => s.name === name);
-}
+// 批量注册图源
+sourceRepository.registerAll(sourceDefinitions);
+
+// 兼容旧API
+export const sources = sourceRepository.getAll();
+export const getSource = (name) => sourceRepository.get(name);
+
+export default sourceRepository;

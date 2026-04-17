@@ -197,47 +197,69 @@ const handleClearAllFailures = () => {
 
 <style scoped>
 .settings-page {
-  padding: 1rem 2rem;
+  padding: 1.5rem 2rem;
   height: 100%;
   display: flex;
   flex-direction: column;
+  /* 改进UI: 添加更现代的背景 */
+  background-color: #f8fafc;
 }
 .settings-form {
   flex-shrink: 0;
+  /* 改进UI: 增加卡片效果 */
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.04);
 }
 .source-management {
-  margin-top: 1rem;
+  margin-top: 1.5rem;
   display: flex;
   flex-direction: column;
+  /* 改进UI: 增加卡片效果 */
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.04);
 }
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 h3 {
   margin: 0;
   font-size: 1.2rem;
+  /* 改进UI: 使用更现代的字体 */
+  font-weight: 600;
+  color: #1e293b;
 }
 .source-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem; /* 列表项之间的间距 */
+  gap: 0.8rem; /* 改进UI: 增加列表项之间的间距 */
 }
 .source-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  padding: 1rem 1.2rem;
+  border-radius: 10px;
+  /* 改进UI: 使用更现代的背景和边框 */
+  background-color: #f8fafc;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .source-item:hover {
+  /* 改进UI: 优化悬停效果 */
   background-color: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
 }
 .source-info, .source-actions {
   display: flex;
@@ -246,9 +268,13 @@ h3 {
 }
 .drag-handle {
   cursor: grab;
-  color: #9ca3af;
+  color: #94a3b8;
+  /* 改进UI: 增加悬停效果 */
+  transition: color 0.2s ease;
 }
 .source-name {
   font-weight: 500;
+  /* 改进UI: 使用更现代的字体颜色 */
+  color: #334155;
 }
 </style>

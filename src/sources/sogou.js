@@ -1,12 +1,12 @@
 
 import axios from 'axios';
 
-async function search(query, page = 1, perPage = 47) {
+async function search(query, page = 1, signal) {
   let url;
   let params;
   let imgExtractor;
 
-  const len = perPage;
+  const len = 47;
   const start = (page - 1) * len;
 
   if (query) {
@@ -28,7 +28,7 @@ async function search(query, page = 1, perPage = 47) {
   }
 
   try {
-    const config = { method: 'get', url, params };
+    const config = { method: 'get', url, params, signal };
     const response = await axios(config);
     const imgLinks = imgExtractor(response);
 
@@ -39,9 +39,13 @@ async function search(query, page = 1, perPage = 47) {
       alt: query || '搜狗表情',
     }));
   } catch (error) {
+    // 忽略主动取消的请求
+    if (error.name === 'CanceledError' || error.name === 'AbortError') {
+      return [];
+    }
     console.error('Failed to fetch from Sogou:', error);
-    // Re-throw the error to be caught by the central handler
-    throw error;
+    // 失败时返回空数组而不是抛出，避免破坏整个搜索流程
+    return [];
   }
 }
 

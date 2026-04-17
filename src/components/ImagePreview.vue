@@ -159,12 +159,14 @@ const closePreview = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
+  /* 改进UI: 使用更现代的渐变背景，增强视觉层次 */
+  background: radial-gradient(circle at center, rgba(20, 20, 30, 0.95) 0%, rgba(0, 0, 0, 0.98) 100%);
   z-index: 9999;
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 2rem;
+  backdrop-filter: blur(8px);
 }
 
 .preview-container {
@@ -173,33 +175,40 @@ const closePreview = () => {
   height: 90vh;
   display: flex;
   flex-direction: column;
-  background-color: #1a1a1a;
-  border-radius: 8px;
+  /* 改进UI: 使用更现代的背景和边框 */
+  background-color: rgba(26, 26, 32, 0.95);
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6),
+              0 0 0 1px rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .preview-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
-  background-color: #2a2a2a;
+  padding: 1rem 1.5rem;
+  /* 改进UI: 使用更现代的背景和边框 */
+  background-color: rgba(32, 32, 40, 0.9);
   color: #fff;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .image-info {
   font-size: 0.9rem;
-  color: #aaa;
+  color: #c0c0c0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 50%;
+  font-weight: 500;
 }
 
 .preview-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.8rem;
 }
 
 .preview-content {
@@ -209,14 +218,16 @@ const closePreview = () => {
   align-items: center;
   overflow: hidden;
   position: relative;
-  background-color: #000;
+  /* 改进UI: 使用更现代的背景 */
+  background: radial-gradient(circle at center, rgba(20, 20, 30, 0.8) 0%, rgba(0, 0, 0, 0.95) 100%);
 }
 
 .preview-content img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-radius: 4px;
 }
 
 .loading-image {
@@ -231,13 +242,17 @@ const closePreview = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.8rem;
   color: #fff;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 1.5rem;
+  border-radius: 12px;
+  backdrop-filter: blur(5px);
 }
 
 .loading-icon {
-  font-size: 2rem;
-  animation: spin 1s linear infinite;
+  font-size: 2.5rem;
+  animation: spin 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
 }
 
 @keyframes spin {
@@ -245,14 +260,15 @@ const closePreview = () => {
   to { transform: rotate(360deg); }
 }
 
-/* 过渡动画 */
+/* 改进UI: 优化过渡动画 */
 .preview-fade-enter-active,
 .preview-fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .preview-fade-enter-from,
 .preview-fade-leave-to {
   opacity: 0;
+  transform: scale(0.95);
 }
 </style>
